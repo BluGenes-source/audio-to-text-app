@@ -184,3 +184,11 @@ TypeError: makedirs() got an unexpected keyword argument 'exist_okay'
 2025-02-26 03:15:00,352 - INFO - # Generating comtypes.gen.stdole
 2025-02-26 03:15:02,304 - INFO - Application started
 2025-02-26 03:15:02,312 - INFO - Found FFmpeg at: J:\Dev\Python\TTS_Local\audio-to-text-app\modules\audio\..\..\tools\ffmpeg.exe
+2025-02-26 03:29:59,621 - INFO - Imported existing <module 'comtypes.gen' from 'J:\\Dev\\Python\\TTS_Local\\audio-to-text-app\\venv\\lib\\site-packages\\comtypes\\gen\\__init__.py'>
+2025-02-26 03:29:59,622 - INFO - Using writeable comtypes cache directory: 'J:\Dev\Python\TTS_Local\audio-to-text-app\venv\lib\site-packages\comtypes\gen'
+2025-02-26 03:30:00,122 - INFO - Application started
+2025-02-26 03:30:00,129 - INFO - Found FFmpeg at: J:\Dev\Python\TTS_Local\audio-to-text-app\modules\audio\..\..\tools\ffmpeg.exe
+2025-02-26 03:30:44,702 - INFO - Imported existing <module 'comtypes.gen' from 'J:\\Dev\\Python\\TTS_Local\\audio-to-text-app\\venv\\lib\\site-packages\\comtypes\\gen\\__init__.py'>
+2025-02-26 03:30:44,703 - INFO - Using writeable comtypes cache directory: 'J:\Dev\Python\TTS_Local\audio-to-text-app\venv\lib\site-packages\comtypes\gen'
+2025-02-26 03:30:45,161 - INFO - Application started
+2025-02-26 03:30:45,167 - INFO - Found FFmpeg at: J:\Dev\Python\TTS_Local\audio-to-text-app\modules\audio\..\..\tools\ffmpeg.exe
