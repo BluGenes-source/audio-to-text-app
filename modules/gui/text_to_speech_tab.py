@@ -95,17 +95,13 @@ class TextToSpeechTab:
                                  command=self.auto_add_pauses)
         auto_pause_btn.grid(row=1, column=4, columnspan=2, padx=2, pady=(5,0))
         
-        format_btn = ttk.Button(format_frame, text="Format Text",
-                             command=self.format_text)
-        format_btn.grid(row=1, column=6, columnspan=2, padx=2, pady=(5,0))
-
         save_text_btn = ttk.Button(format_frame, text="Save Text",
                                 command=self.save_tts_text)
-        save_text_btn.grid(row=1, column=8, columnspan=2, padx=2, pady=(5,0))
+        save_text_btn.grid(row=1, column=6, columnspan=2, padx=2, pady=(5,0))
 
         clear_text_btn = ttk.Button(format_frame, text="Clear Text",
                                  command=self.clear_text)
-        clear_text_btn.grid(row=1, column=10, columnspan=2, padx=2, pady=(5,0))
+        clear_text_btn.grid(row=1, column=8, columnspan=2, padx=2, pady=(5,0))
         
         # Text area with mouse bindings
         self.tts_text_area = scrolledtext.ScrolledText(text_frame, height=15, wrap=tk.WORD,
@@ -120,9 +116,12 @@ class TextToSpeechTab:
         )
         self.tts_text_area.drop_target_register(DND_FILES)
         self.tts_text_area.dnd_bind('<<Drop>>', self.handle_text_drop)
-        # Add click binding for auto-insert and mouse wheel binding for font size
-        self.tts_text_area.bind('<Button-1>', self.handle_text_click)
-        self.tts_text_area.bind('<Control-Button-2>', self.handle_font_size_change)
+        # Add click bindings for auto-insert and mouse wheel binding for font size
+        self.tts_text_area.bind('<Button-1>', self.handle_text_click)  # Left click
+        self.tts_text_area.bind('<Button-3>', self.handle_text_click)  # Right click
+        self.tts_text_area.bind('<Control-MouseWheel>', self.handle_font_size_change)  # Windows
+        self.tts_text_area.bind('<Control-Button-4>', self.handle_font_size_change)    # Linux up
+        self.tts_text_area.bind('<Control-Button-5>', self.handle_font_size_change)    # Linux down
         
         # Voice options
         self.setup_voice_options()
@@ -300,48 +299,6 @@ class TextToSpeechTab:
             messagebox.showerror("Error", "Invalid pause length value")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to add pause markers: {str(e)}")
-
-    def format_text(self):
-        """Format text for better speech synthesis"""
-        try:
-            text = self.tts_text_area.get(1.0, tk.END).strip()
-            if not text:
-                messagebox.showwarning("Warning", "Please enter or load some text first")
-                return
-            
-            try:
-                pause_ms = int(self.pause_length.get())
-                if pause_ms < 0:
-                    raise ValueError("Pause length must be positive")
-            except ValueError as e:
-                messagebox.showerror("Error", "Invalid pause length. Please enter a positive number.")
-                return
-            
-            formatted_text = self._preprocess_text(text, pause_ms)
-            self.tts_text_area.delete(1.0, tk.END)
-            self.tts_text_area.insert(tk.END, formatted_text)
-            self.update_status("Text formatted successfully")
-            
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to format text: {str(e)}")
-
-    def _preprocess_text(self, text, pause_ms):
-        """Apply text preprocessing for speech synthesis"""
-        pause_sec = pause_ms / 1000
-        text = text.strip()
-        
-        # Add proper spacing and pauses
-        text = re.sub(r'([.!?])([A-Z])', r'\1 \2', text)
-        marker = re.escape(self.pause_marker.get())
-        text = re.sub(f'{marker}+', f' <break time="{pause_sec}s"/> ', text)
-        text = re.sub(r'([.!?])\s+', f'\\1 <break time="{pause_sec}s"/> ', text)
-        text = re.sub(r'([,;:])\s+', f'\\1 <break time="{pause_sec/2}s"/> ', text)
-        text = re.sub(r'\((.*?)\)', f'<break time="{pause_sec/2}s"/> (\\1) <break time="{pause_sec/2}s"/>', text)
-        text = re.sub(r'--+', f' <break time="{pause_sec/2}s"/> ', text)
-        text = re.sub(r'\.{3,}', f' <break time="{pause_sec/2}s"/> ', text)
-        text = re.sub(r'(\d+\.|•|\*)\s+', f'\\1 <break time="{pause_sec/3}s"/> ', text)
-        
-        return ' '.join(text.split())
 
     def save_tts_text(self):
         """Save text to file"""
@@ -532,20 +489,38 @@ class TextToSpeechTab:
             try:
                 # Get click position
                 click_pos = self.tts_text_area.index(f"@{event.x},{event.y}")
-                # Insert period and short pause
-                short_pause = f"<break time=\"{int(self.short_pause_length.get())/1000}s\"/>"
-                self.tts_text_area.insert(click_pos, f". {short_pause} ")
+                
+                # Determine if it's left click (event.num = 1) or right click (event.num = 3)
+                is_short = event.num == 1
+                pause_ms = self.short_pause_length.get() if is_short else self.long_pause_length.get()
+                
+                # Insert period and appropriate pause
+                pause_marker = f"<break time=\"{int(pause_ms)/1000}s\"/>"
+                self.tts_text_area.insert(click_pos, f". {pause_marker} ")
+                
                 # Move cursor after inserted text
-                self.tts_text_area.mark_set(tk.INSERT, f"{click_pos}+{len(short_pause)+3}c")
+                self.tts_text_area.mark_set(tk.INSERT, f"{click_pos}+{len(pause_marker)+3}c")
+                
+                # Update status with feedback
+                self.update_status(f"Inserted {'short' if is_short else 'long'} pause")
+                
                 return "break"  # Prevent default click behavior
             except Exception as e:
                 self.update_status(f"Error in auto-insert: {str(e)}")
 
     def handle_font_size_change(self, event):
-        """Handle font size changes with Control + middle mouse button"""
+        """Handle font size changes with Control + mouse wheel"""
         try:
-            # Get the direction of scroll (up or down)
-            if event.delta > 0 or (hasattr(event, 'num') and event.num == 4):
+            # Determine direction based on event type
+            if hasattr(event, 'delta'):  # Windows
+                increase = event.delta > 0
+            elif hasattr(event, 'num'):  # Linux
+                increase = event.num == 4  # Button-4 is scroll up
+            else:
+                return
+
+            # Adjust font size
+            if increase:
                 self.current_font_size = min(self.current_font_size + 1, 24)
             else:
                 self.current_font_size = max(self.current_font_size - 1, 8)
