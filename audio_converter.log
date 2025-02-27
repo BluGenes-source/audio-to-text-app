@@ -192,3 +192,20 @@ TypeError: makedirs() got an unexpected keyword argument 'exist_okay'
 2025-02-26 03:30:44,703 - INFO - Using writeable comtypes cache directory: 'J:\Dev\Python\TTS_Local\audio-to-text-app\venv\lib\site-packages\comtypes\gen'
 2025-02-26 03:30:45,161 - INFO - Application started
 2025-02-26 03:30:45,167 - INFO - Found FFmpeg at: J:\Dev\Python\TTS_Local\audio-to-text-app\modules\audio\..\..\tools\ffmpeg.exe
+2025-02-26 06:53:05,632 - INFO - Imported existing <module 'comtypes.gen' from 'J:\\Dev\\Python\\TTS_Local\\audio-to-text-app\\venv\\lib\\site-packages\\comtypes\\gen\\__init__.py'>
+2025-02-26 06:53:05,633 - INFO - Using writeable comtypes cache directory: 'J:\Dev\Python\TTS_Local\audio-to-text-app\venv\lib\site-packages\comtypes\gen'
+2025-02-26 06:53:08,053 - INFO - Application started
+2025-02-26 06:53:08,062 - INFO - Found FFmpeg at: J:\Dev\Python\TTS_Local\audio-to-text-app\modules\audio\..\..\tools\ffmpeg.exe
+2025-02-26 06:58:10,513 - ERROR - Error playing audio: Unknown WAVE format
+2025-02-26 07:07:46,838 - INFO - Imported existing <module 'comtypes.gen' from 'J:\\Dev\\Python\\TTS_Local\\audio-to-text-app\\venv\\lib\\site-packages\\comtypes\\gen\\__init__.py'>
+2025-02-26 07:07:46,838 - INFO - Using writeable comtypes cache directory: 'J:\Dev\Python\TTS_Local\audio-to-text-app\venv\lib\site-packages\comtypes\gen'
+2025-02-26 07:07:47,794 - INFO - Application started
+2025-02-26 07:07:47,806 - INFO - Found FFmpeg at: J:\Dev\Python\TTS_Local\audio-to-text-app\modules\audio\..\..\tools\ffmpeg.exe
+2025-02-26 07:19:48,001 - INFO - Imported existing <module 'comtypes.gen' from 'J:\\Dev\\Python\\TTS_Local\\audio-to-text-app\\venv\\lib\\site-packages\\comtypes\\gen\\__init__.py'>
+2025-02-26 07:19:48,001 - INFO - Using writeable comtypes cache directory: 'J:\Dev\Python\TTS_Local\audio-to-text-app\venv\lib\site-packages\comtypes\gen'
+2025-02-26 07:19:48,978 - INFO - Application started
+2025-02-26 07:19:48,996 - INFO - Found FFmpeg at: J:\Dev\Python\TTS_Local\audio-to-text-app\modules\audio\..\..\tools\ffmpeg.exe
+2025-02-27 04:45:22,947 - INFO - Imported existing <module 'comtypes.gen' from 'J:\\Dev\\Python\\TTS_Local\\audio-to-text-app\\venv\\lib\\site-packages\\comtypes\\gen\\__init__.py'>
+2025-02-27 04:45:22,947 - INFO - Using writeable comtypes cache directory: 'J:\Dev\Python\TTS_Local\audio-to-text-app\venv\lib\site-packages\comtypes\gen'
+2025-02-27 04:45:23,723 - INFO - Application started
+2025-02-27 04:45:23,732 - INFO - Found FFmpeg at: J:\Dev\Python\TTS_Local\audio-to-text-app\modules\audio\..\..\tools\ffmpeg.exe
