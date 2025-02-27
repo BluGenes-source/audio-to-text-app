@@ -50,3 +50,6 @@ tools/ffmpeg.exe
 desktop.ini
 Thumbs.db
 ehthumbs.db
+
+# FFmpeg tools directory
+tools/
