@@ -9,12 +9,23 @@ class ConfigManager:
         self.transcribes_folder = os.path.join(app_dir, "Transcribes")
         self.dialogs_folder = os.path.join(app_dir, "Dialogs")
         
+        # Window settings
         self.window_width = None
         self.window_height = None
         self.window_x = None
         self.window_y = None
+        
+        # Folder settings
         self.input_folder = ""
         self.output_folder = self.default_output
+        
+        # Visual settings
+        self.theme = "light"
+        self.font_family = "Helvetica"
+        self.font_size = 10
+        self.accent_color = "#2962ff"
+        self.text_color = "#000000"
+        
         self.load_config()
 
     def load_config(self):
@@ -23,12 +34,20 @@ class ConfigManager:
             try:
                 with open(self.config_file, 'r') as f:
                     config = json.load(f)
+                # Window settings
                 self.input_folder = config.get('input_folder', "")
                 self.output_folder = config.get('output_folder', self.default_output)
                 self.window_width = config.get('window_width', None)
                 self.window_height = config.get('window_height', None)
                 self.window_x = config.get('window_x', None)
                 self.window_y = config.get('window_y', None)
+                
+                # Visual settings
+                self.theme = config.get('theme', "light")
+                self.font_family = config.get('font_family', "Helvetica")
+                self.font_size = config.get('font_size', 10)
+                self.accent_color = config.get('accent_color', "#2962ff")
+                self.text_color = config.get('text_color', "#000000")
             except:
                 self._set_defaults()
         else:
@@ -47,7 +66,12 @@ class ConfigManager:
             'window_width': self.window_width,
             'window_height': self.window_height,
             'window_x': self.window_x,
-            'window_y': self.window_y
+            'window_y': self.window_y,
+            'theme': self.theme,
+            'font_family': self.font_family,
+            'font_size': self.font_size,
+            'accent_color': self.accent_color,
+            'text_color': self.text_color
         }
         try:
             with open(self.config_file, 'w') as f:
@@ -59,3 +83,8 @@ class ConfigManager:
         """Set default configuration values"""
         self.input_folder = ""
         self.output_folder = self.default_output
+        self.theme = "light"
+        self.font_family = "Helvetica"
+        self.font_size = 10
+        self.accent_color = "#2962ff"
+        self.text_color = "#000000"

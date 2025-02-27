@@ -9,6 +9,7 @@ from modules.audio import AudioProcessor, find_ffmpeg
 from modules.utils import setup_logging
 from modules.gui import setup_styles, AppDimensions
 from modules.gui.text_to_speech_tab import TextToSpeechTab
+from modules.gui.settings_tab import SettingsTab
 from modules.gui.tabs import SpeechToTextTab
 
 class AudioToTextConverter:
@@ -51,7 +52,7 @@ class AudioToTextConverter:
 
     def setup_styles(self):
         """Configure application styles"""
-        self.style = setup_styles()
+        self.style = setup_styles(self.config)
 
     def setup_window_geometry(self):
         """Set up initial window size and position"""
@@ -104,9 +105,15 @@ class AudioToTextConverter:
             self._update_status,
             self.root
         )
+        self.settings_tab = SettingsTab(
+            ttk.Frame(self.notebook),
+            self.config,
+            self.update_styles
+        )
         
         self.notebook.add(self.stt_tab.parent, text="Speech to Text")
         self.notebook.add(self.tts_tab.parent, text="Text to Speech")
+        self.notebook.add(self.settings_tab.parent, text="Settings")
         
         # Status bar
         self._setup_status_bar()
@@ -119,6 +126,12 @@ class AudioToTextConverter:
         
         # Start log queue checker
         self.check_log_queue()
+
+    def update_styles(self):
+        """Update application styles based on current configuration"""
+        self.style = setup_styles(self.config)
+        self._update_status("Theme updated")
+        self.config.save_config()
 
     def _setup_title(self, parent):
         """Set up the title section"""

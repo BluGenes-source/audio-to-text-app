@@ -5,6 +5,7 @@ import os
 import logging
 import threading
 import re
+from .styles import ThemeColors
 
 class TextToSpeechTab:
     def __init__(self, parent, config, audio_processor, update_status_callback, root):
@@ -19,6 +20,10 @@ class TextToSpeechTab:
         self.setup_tab()
 
     def setup_tab(self):
+        # Get theme colors
+        is_dark = self.config.theme == "dark"
+        theme = ThemeColors(is_dark)
+        
         # Folder selection frame
         folder_frame = ttk.LabelFrame(self.parent, text="Folder Settings", 
                                     style="Group.TLabelframe", padding="10")
@@ -78,6 +83,13 @@ class TextToSpeechTab:
         self.tts_text_area = scrolledtext.ScrolledText(text_frame, height=15, wrap=tk.WORD,
                                                      font=('Helvetica', 10))
         self.tts_text_area.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
+        self.tts_text_area.configure(
+            background=theme.input_bg,
+            foreground=theme.input_fg,
+            insertbackground=theme.input_fg,
+            selectbackground=theme.selection_bg,
+            selectforeground=theme.selection_fg
+        )
         self.tts_text_area.drop_target_register(DND_FILES)
         self.tts_text_area.dnd_bind('<<Drop>>', self.handle_text_drop)
         

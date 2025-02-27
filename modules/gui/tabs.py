@@ -4,6 +4,7 @@ from tkinterdnd2 import DND_FILES
 import os
 import logging
 import threading
+from .styles import ThemeColors
 
 class SpeechToTextTab:
     def __init__(self, parent, config, audio_processor, terminal_callback, root):
@@ -49,10 +50,21 @@ class SpeechToTextTab:
         drop_label = ttk.Label(text_frame, text="Drop audio file here or use the input options above",
                              font=('Helvetica', 9, 'italic'))
         drop_label.grid(row=0, column=0, pady=(0, 5))
+
+        # Apply theme colors to text area
+        is_dark = self.config.theme == "dark"
+        theme = ThemeColors(is_dark)
         
         self.text_area = scrolledtext.ScrolledText(text_frame, height=15, wrap=tk.WORD,
                                                  font=('Helvetica', 10))
         self.text_area.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
+        self.text_area.configure(
+            background=theme.input_bg,
+            foreground=theme.input_fg,
+            insertbackground=theme.input_fg,
+            selectbackground=theme.selection_bg,
+            selectforeground=theme.selection_fg
+        )
         self.text_area.drop_target_register(DND_FILES)
         self.text_area.dnd_bind('<<Drop>>', self.handle_drop)
         
@@ -64,7 +76,14 @@ class SpeechToTextTab:
         self.terminal_area = scrolledtext.ScrolledText(terminal_frame, height=8, wrap=tk.WORD,
                                                      font=('Helvetica', 10))
         self.terminal_area.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
-        self.terminal_area.configure(state='disabled')
+        self.terminal_area.configure(
+            background=theme.input_bg,
+            foreground=theme.input_fg,
+            insertbackground=theme.input_fg,
+            selectbackground=theme.selection_bg,
+            selectforeground=theme.selection_fg,
+            state='disabled'
+        )
         
         # Control buttons in a labeled frame
         control_frame = ttk.LabelFrame(self.parent, text="Controls", 
