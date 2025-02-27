@@ -225,6 +225,31 @@ def setup_styles(config=None):
                    selectforeground=theme.selection_fg,
                    insertbackground=theme.input_fg)
 
+    # Audio control button styles
+    style.configure("Audio.Play.TButton",
+                   background="#4caf50",
+                   foreground=theme.button_fg)
+    
+    style.map("Audio.Play.TButton",
+             background=[("active", "#388e3c"),
+                        ("pressed", "#388e3c"),
+                        ("disabled", "#cccccc")],
+             foreground=[("active", theme.button_fg),
+                        ("pressed", theme.button_fg),
+                        ("disabled", "#666666")])
+    
+    style.configure("Audio.Stop.TButton",
+                   background="#f44336",
+                   foreground=theme.button_fg)
+    
+    style.map("Audio.Stop.TButton",
+             background=[("active", "#d32f2f"),
+                        ("pressed", "#d32f2f"),
+                        ("disabled", "#cccccc")],
+             foreground=[("active", theme.button_fg),
+                        ("pressed", theme.button_fg),
+                        ("disabled", "#666666")])
+
     return style
 
 class AppDimensions:

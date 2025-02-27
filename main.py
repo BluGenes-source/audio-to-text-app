@@ -14,6 +14,31 @@ from modules.gui.tabs import SpeechToTextTab
 
 class AudioToTextConverter:
     def __init__(self):
+        # Set up FFmpeg before anything else
+        from pydub import AudioSegment
+        import os
+        # Get main FFmpeg paths
+        ffmpeg_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tools')
+        ffmpeg_path = os.path.join(ffmpeg_dir, 'ffmpeg.exe')
+        ffprobe_path = os.path.join(ffmpeg_dir, 'ffprobe.exe')
+
+        if os.path.exists(ffmpeg_path):
+            # Set FFmpeg paths globally
+            AudioSegment.converter = ffmpeg_path
+            AudioSegment.ffmpeg = ffmpeg_path
+            AudioSegment.ffprobe = ffprobe_path  # Use ffprobe path
+            # Add FFmpeg directory to system PATH
+            if ffmpeg_dir not in os.environ.get('PATH', ''):
+                os.environ['PATH'] = os.pathsep.join([ffmpeg_dir, os.environ.get('PATH', '')])
+            # Set explicit binary paths
+            os.environ['FFMPEG_BINARY'] = ffmpeg_path
+            os.environ['FFPROBE_BINARY'] = ffprobe_path
+
+            # Log FFmpeg configuration
+            logging.basicConfig(level=logging.INFO)
+            logging.info(f"FFmpeg configured at: {ffmpeg_path}")
+            logging.info(f"FFprobe configured at: {ffprobe_path}")
+        
         self.root = TkinterDnD.Tk()
         self.root.title("Audio/Text Converter")
         
@@ -207,14 +232,14 @@ class AudioToTextConverter:
         from tkinter import messagebox
         import webbrowser
         
-        msg = """FFmpeg is required but not found. Please install it:
+        msg = """FFmpeg tools are required but not found. Please install them:
 
 1. Download FFmpeg from https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z
 2. Extract the archive
-3. Copy the ffmpeg.exe from the bin folder to one of these locations:
-   - Create a 'tools' folder in this app's directory and place it there
-   - Add it to your system's PATH environment variable
-       
+3. Copy BOTH ffmpeg.exe AND ffprobe.exe from the bin folder to:
+   - The 'tools' folder in this app's directory
+   
+Note: Both executables are required for proper audio processing.
 Would you like to open the download page now?"""
         
         if messagebox.askyesno("FFmpeg Required", msg):

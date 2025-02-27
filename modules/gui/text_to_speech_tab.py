@@ -70,19 +70,22 @@ class TextToSpeechTab:
         insert_marker_btn = ttk.Button(format_frame, text="Insert Pause",
                                      command=self.insert_pause_marker)
         insert_marker_btn.grid(row=0, column=5, padx=10)
+
+        auto_pause_btn = ttk.Button(format_frame, text="Auto-Add Pauses",
+                                  command=self.auto_add_pauses)
+        auto_pause_btn.grid(row=0, column=6, padx=10)
         
         format_btn = ttk.Button(format_frame, text="Format Text",
                               command=self.format_text)
-        format_btn.grid(row=0, column=6, padx=10)
+        format_btn.grid(row=0, column=7, padx=10)
 
         save_text_btn = ttk.Button(format_frame, text="Save Text",
                                  command=self.save_tts_text)
-        save_text_btn.grid(row=0, column=7, padx=10)
+        save_text_btn.grid(row=0, column=8, padx=10)
 
-        # Add clear button to format frame
         clear_text_btn = ttk.Button(format_frame, text="Clear Text",
                                   command=self.clear_text)
-        clear_text_btn.grid(row=0, column=8, padx=10)
+        clear_text_btn.grid(row=0, column=9, padx=10)
         
         # Text area
         self.tts_text_area = scrolledtext.ScrolledText(text_frame, height=15, wrap=tk.WORD,
@@ -229,6 +232,43 @@ class TextToSpeechTab:
             self.update_status(f"Inserted pause marker at position {current_pos}")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to insert pause marker: {str(e)}")
+
+    def auto_add_pauses(self):
+        """Automatically add pause markers after periods"""
+        try:
+            text = self.tts_text_area.get(1.0, tk.END)
+            if not text.strip():
+                messagebox.showwarning("Warning", "No text to process")
+                return
+
+            # Get current cursor position
+            current_pos = self.tts_text_area.index(tk.INSERT)
+            
+            # Add pause marker after periods if one doesn't already exist
+            marker = self.pause_marker.get()
+            modified_text = ""
+            last_char = ""
+            
+            for char in text:
+                modified_text += char
+                if char == '.' and last_char != marker:
+                    modified_text += marker
+                last_char = char
+
+            # Update text area
+            self.tts_text_area.delete(1.0, tk.END)
+            self.tts_text_area.insert(1.0, modified_text)
+            
+            # Restore cursor position
+            try:
+                self.tts_text_area.mark_set(tk.INSERT, current_pos)
+            except:
+                pass
+
+            self.update_status("Added pause markers after periods")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to add pause markers: {str(e)}")
 
     def format_text(self):
         """Format text for better speech synthesis"""
