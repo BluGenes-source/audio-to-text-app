@@ -78,6 +78,11 @@ class TextToSpeechTab:
         save_text_btn = ttk.Button(format_frame, text="Save Text",
                                  command=self.save_tts_text)
         save_text_btn.grid(row=0, column=7, padx=10)
+
+        # Add clear button to format frame
+        clear_text_btn = ttk.Button(format_frame, text="Clear Text",
+                                  command=self.clear_text)
+        clear_text_btn.grid(row=0, column=8, padx=10)
         
         # Text area
         self.tts_text_area = scrolledtext.ScrolledText(text_frame, height=15, wrap=tk.WORD,
@@ -143,9 +148,10 @@ class TextToSpeechTab:
         control_frame.columnconfigure(0, weight=1)
         control_frame.columnconfigure(7, weight=1)
         
+        # TTS generate button with inactive style initially
         self.tts_start_button = ttk.Button(control_frame, text="Generate Speech", 
                                          command=self.start_text_to_speech,
-                                         style='Action.TButton')
+                                         style='Action.Inactive.TButton')
         self.tts_start_button.grid(row=0, column=1, padx=10)
         
         self.tts_cancel_button = ttk.Button(control_frame, text="Cancel", 
@@ -189,6 +195,7 @@ class TextToSpeechTab:
                     self.tts_text_area.delete(1.0, tk.END)
                     self.tts_text_area.insert(tk.END, f.read())
                 self.update_status(f"Loaded text file: {os.path.basename(file_path)}")
+                self.tts_start_button.configure(style='Action.Ready.TButton')
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to load text file: {str(e)}")
         else:
@@ -210,6 +217,7 @@ class TextToSpeechTab:
                     self.tts_text_area.delete(1.0, tk.END)
                     self.tts_text_area.insert(tk.END, f.read())
                 self.update_status(f"Loaded text file: {os.path.basename(file_path)}")
+                self.tts_start_button.configure(style='Action.Ready.TButton')
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to load text file: {str(e)}")
 
@@ -414,10 +422,19 @@ class TextToSpeechTab:
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to save audio: {str(e)}")
 
+    def clear_text(self):
+        """Clear the text area after confirmation"""
+        if self.tts_text_area.get(1.0, tk.END).strip():
+            if messagebox.askyesno("Confirm Clear", "Are you sure you want to clear all text?"):
+                self.tts_text_area.delete(1.0, tk.END)
+                self.update_status("Text cleared")
+                self.tts_start_button.configure(style='Action.Inactive.TButton')
+
     def set_text(self, text):
         """Set the text in the text area and switch to this tab"""
         self.tts_text_area.delete(1.0, tk.END)
         self.tts_text_area.insert(tk.END, text)
         self.update_status("Text received from Speech-to-Text tab")
+        self.tts_start_button.configure(style='Action.Ready.TButton')
         # Switch to this tab (notebook is parent's parent)
         self.parent.master.select(self.parent)

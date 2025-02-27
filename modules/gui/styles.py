@@ -1,7 +1,7 @@
 from tkinter import ttk
 
 class ThemeColors:
-    def __init__(self, is_dark=False):
+    def __init__(self, is_dark=False, config=None):
         if is_dark:
             # Dark theme colors
             self.bg = "#2d2d2d"
@@ -16,6 +16,9 @@ class ThemeColors:
             self.tab_inactive = "#3d3d3d"
             self.input_bg = "#3d3d3d"
             self.input_fg = "#ffffff"
+            # Button state colors
+            self.button_inactive = config.button_inactive_color if config else "#666666"
+            self.button_ready = config.button_ready_color if config else "#2962ff"
         else:
             # Light theme colors
             self.bg = "#f5f5f5"
@@ -30,6 +33,9 @@ class ThemeColors:
             self.tab_inactive = "#f0f0f0"
             self.input_bg = "#ffffff"
             self.input_fg = "#000000"
+            # Button state colors
+            self.button_inactive = config.button_inactive_color if config else "#cccccc"
+            self.button_ready = config.button_ready_color if config else "#2962ff"
 
 def setup_styles(config=None):
     """Configure custom ttk styles for the application"""
@@ -37,7 +43,7 @@ def setup_styles(config=None):
     
     # Get theme colors based on current theme setting
     is_dark = config and config.theme == "dark"
-    theme = ThemeColors(is_dark)
+    theme = ThemeColors(is_dark, config)
     
     # Use custom colors if provided in config
     accent_color = config.accent_color if config else "#2962ff"
@@ -114,6 +120,33 @@ def setup_styles(config=None):
     style.map("Action.TButton",
              background=[("active", accent_color),
                         ("pressed", accent_color)],
+             foreground=[("active", theme.button_fg),
+                        ("pressed", theme.button_fg)])
+
+    # Action button states
+    style.configure("Action.Inactive.TButton",
+                   font=(config.font_family if config else 'Helvetica',
+                        config.font_size if config else 10, 'bold'),
+                   background=theme.button_inactive,
+                   foreground=theme.button_fg,
+                   padding=5)
+    
+    style.map("Action.Inactive.TButton",
+             background=[("active", theme.button_inactive),
+                        ("pressed", theme.button_inactive)],
+             foreground=[("active", theme.button_fg),
+                        ("pressed", theme.button_fg)])
+
+    style.configure("Action.Ready.TButton",
+                   font=(config.font_family if config else 'Helvetica',
+                        config.font_size if config else 10, 'bold'),
+                   background=theme.button_ready,
+                   foreground=theme.button_fg,
+                   padding=5)
+    
+    style.map("Action.Ready.TButton",
+             background=[("active", theme.button_ready),
+                        ("pressed", theme.button_ready)],
              foreground=[("active", theme.button_fg),
                         ("pressed", theme.button_fg)])
     

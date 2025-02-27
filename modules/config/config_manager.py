@@ -25,6 +25,8 @@ class ConfigManager:
         self.font_size = 10
         self.accent_color = "#2962ff"
         self.text_color = "#000000"
+        self.button_inactive_color = "#cccccc"
+        self.button_ready_color = "#2962ff"
         
         self.load_config()
 
@@ -48,6 +50,8 @@ class ConfigManager:
                 self.font_size = config.get('font_size', 10)
                 self.accent_color = config.get('accent_color', "#2962ff")
                 self.text_color = config.get('text_color', "#000000")
+                self.button_inactive_color = config.get('button_inactive_color', '#cccccc')
+                self.button_ready_color = config.get('button_ready_color', '#2962ff')
             except:
                 self._set_defaults()
         else:
@@ -71,7 +75,9 @@ class ConfigManager:
             'font_family': self.font_family,
             'font_size': self.font_size,
             'accent_color': self.accent_color,
-            'text_color': self.text_color
+            'text_color': self.text_color,
+            'button_inactive_color': self.button_inactive_color,
+            'button_ready_color': self.button_ready_color
         }
         try:
             with open(self.config_file, 'w') as f:
@@ -88,3 +94,5 @@ class ConfigManager:
         self.font_size = 10
         self.accent_color = "#2962ff"
         self.text_color = "#000000"
+        self.button_inactive_color = "#cccccc"
+        self.button_ready_color = "#2962ff"

@@ -72,6 +72,23 @@ class SettingsTab:
         ttk.Button(color_frame, text="Choose Color",
                   command=lambda: self.choose_color('text')).grid(row=1, column=2, padx=5)
 
+        # Button state colors
+        ttk.Label(color_frame, text="Inactive Button:").grid(row=2, column=0, padx=5, pady=5)
+        self.button_inactive_color = tk.StringVar(value=self.config.button_inactive_color or "#cccccc")
+        self.button_inactive_preview = tk.Frame(color_frame, width=30, height=20,
+                                              bg=self.button_inactive_color.get())
+        self.button_inactive_preview.grid(row=2, column=1, padx=5)
+        ttk.Button(color_frame, text="Choose Color",
+                  command=lambda: self.choose_color('button_inactive')).grid(row=2, column=2, padx=5)
+
+        ttk.Label(color_frame, text="Ready Button:").grid(row=3, column=0, padx=5, pady=5)
+        self.button_ready_color = tk.StringVar(value=self.config.button_ready_color or "#2962ff")
+        self.button_ready_preview = tk.Frame(color_frame, width=30, height=20,
+                                           bg=self.button_ready_color.get())
+        self.button_ready_preview.grid(row=3, column=1, padx=5)
+        ttk.Button(color_frame, text="Choose Color",
+                  command=lambda: self.choose_color('button_ready')).grid(row=3, column=2, padx=5)
+
         # Preview section
         preview_frame = ttk.LabelFrame(main_frame, text="Preview", padding="10")
         preview_frame.grid(row=3, column=0, sticky="ew", pady=(0, 10))
@@ -95,14 +112,29 @@ class SettingsTab:
 
     def choose_color(self, color_type):
         current_color = self.accent_color.get() if color_type == 'accent' else self.text_color.get()
+        if color_type == 'accent':
+            current_color = self.accent_color.get()
+        elif color_type == 'text':
+            current_color = self.text_color.get()
+        elif color_type == 'button_inactive':
+            current_color = self.button_inactive_color.get()
+        else:  # button_ready
+            current_color = self.button_ready_color.get()
+
         color = colorchooser.askcolor(color=current_color)
         if color[1]:
             if color_type == 'accent':
                 self.accent_color.set(color[1])
                 self.accent_preview.configure(bg=color[1])
-            else:
+            elif color_type == 'text':
                 self.text_color.set(color[1])
                 self.text_preview.configure(bg=color[1])
+            elif color_type == 'button_inactive':
+                self.button_inactive_color.set(color[1])
+                self.button_inactive_preview.configure(bg=color[1])
+            else:  # button_ready
+                self.button_ready_color.set(color[1])
+                self.button_ready_preview.configure(bg=color[1])
             self.apply_settings()
 
     def apply_settings(self):
@@ -115,6 +147,8 @@ class SettingsTab:
             self.config.font_size = 10
         self.config.accent_color = self.accent_color.get()
         self.config.text_color = self.text_color.get()
+        self.config.button_inactive_color = self.button_inactive_color.get()
+        self.config.button_ready_color = self.button_ready_color.get()
 
         # Update preview
         self.preview_text.configure(
