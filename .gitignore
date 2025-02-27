@@ -6,6 +6,7 @@ __pycache__/
 .Python
 venv/
 env/
+.venv/
 build/
 develop-eggs/
 dist/
@@ -30,7 +31,6 @@ Dialogs/*
 Transcribes/*
 !Transcribes/.gitkeep
 output/
-tools/ffmpeg.exe
 
 # Audio files
 *.wav
@@ -54,3 +54,12 @@ ehthumbs.db
 # FFmpeg tools directory
 tools/
 audio_converter.log
+terminal_output.txt
+
+# Python specific
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.env
+.venv
