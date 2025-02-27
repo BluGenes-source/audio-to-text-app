@@ -36,7 +36,11 @@ class AudioProcessor:
 
     def initialize_pygame(self):
         """Initialize pygame mixer for audio playback"""
-        pygame.mixer.init()
+        try:
+            pygame.mixer.quit()  # Ensure mixer is properly shut down
+            pygame.mixer.init(frequency=44100, size=-16, channels=2)
+        except Exception as e:
+            logging.error(f"Failed to initialize pygame mixer: {e}")
 
     def convert_audio_to_text(self, audio_path, progress_callback=None):
         """Convert audio file to text using speech recognition"""
@@ -60,6 +64,8 @@ class AudioProcessor:
                 progress_callback("Loading and analyzing audio file...")
             
             audio = AudioSegment.from_file(audio_path)
+            # Convert to standard format
+            audio = audio.set_frame_rate(44100).set_channels(2)
             duration_seconds = len(audio) / 1000
             
             os.makedirs(self.output_folder, exist_ok=True)
@@ -69,8 +75,12 @@ class AudioProcessor:
             if progress_callback:
                 progress_callback("Converting audio format for optimal recognition...")
             
+            # Export with specific WAV format parameters
             audio.export(temp_path, format="wav", parameters=[
-                "-ac", "1", "-ar", "16000", "-loglevel", "error"
+                "-ac", "2",  # 2 channels
+                "-ar", "44100",  # 44.1kHz sample rate
+                "-acodec", "pcm_s16le",  # 16-bit PCM encoding
+                "-loglevel", "error"
             ])
             
             if progress_callback:

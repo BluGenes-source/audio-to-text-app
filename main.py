@@ -91,13 +91,6 @@ class AudioToTextConverter:
         self.notebook.grid(row=1, column=0, columnspan=2, sticky="nsew")
         
         # Create tabs
-        self.stt_tab = SpeechToTextTab(
-            ttk.Frame(self.notebook),
-            self.config,
-            self.audio_processor,
-            self._append_terminal,
-            self.root
-        )
         self.tts_tab = TextToSpeechTab(
             ttk.Frame(self.notebook),
             self.config,
@@ -105,12 +98,23 @@ class AudioToTextConverter:
             self._update_status,
             self.root
         )
+        self.stt_tab = SpeechToTextTab(
+            ttk.Frame(self.notebook),
+            self.config,
+            self.audio_processor,
+            self._append_terminal,
+            self.root
+        )
         self.settings_tab = SettingsTab(
             ttk.Frame(self.notebook),
             self.config,
             self.update_styles
         )
+
+        # Connect STT tab to TTS tab
+        self.stt_tab.tts_tab = self.tts_tab
         
+        # Add tabs to notebook
         self.notebook.add(self.stt_tab.parent, text="Speech to Text")
         self.notebook.add(self.tts_tab.parent, text="Text to Speech")
         self.notebook.add(self.settings_tab.parent, text="Settings")

@@ -413,3 +413,11 @@ class TextToSpeechTab:
                     pass
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to save audio: {str(e)}")
+
+    def set_text(self, text):
+        """Set the text in the text area and switch to this tab"""
+        self.tts_text_area.delete(1.0, tk.END)
+        self.tts_text_area.insert(tk.END, text)
+        self.update_status("Text received from Speech-to-Text tab")
+        # Switch to this tab (notebook is parent's parent)
+        self.parent.master.select(self.parent)

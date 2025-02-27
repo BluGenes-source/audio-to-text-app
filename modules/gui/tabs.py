@@ -13,20 +13,27 @@ class SpeechToTextTab:
         self.audio_processor = audio_processor
         self.terminal_callback = terminal_callback
         self.root = root
+        self.cancel_flag = False
+        self.current_process = None
+        self.tts_tab = None  # Will be set by main app
         self.setup_tab()
 
     def setup_tab(self):
-        # Folder selection frame
-        folder_frame = ttk.LabelFrame(self.parent, text="Folder Settings", 
+        # Main container with padding
+        main_frame = ttk.Frame(self.parent, padding="10")
+        main_frame.grid(row=0, column=0, sticky="nsew")
+
+        # Folder settings frame
+        folder_frame = ttk.LabelFrame(main_frame, text="Folder Settings", 
                                     style="Group.TLabelframe", padding="10")
         folder_frame.grid(row=0, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
-        
+
         # Create two groups within folder frame
         input_group = ttk.Frame(folder_frame)
         input_group.grid(row=0, column=0, padx=5)
         output_group = ttk.Frame(folder_frame)
         output_group.grid(row=0, column=1, padx=5)
-        
+
         # Input group
         ttk.Label(input_group, text="Input Options:", 
                  style="Subtitle.TLabel").grid(row=0, column=0, pady=(0, 5))
@@ -34,18 +41,18 @@ class SpeechToTextTab:
                   command=self.select_input_folder).grid(row=1, column=0)
         ttk.Button(input_group, text="Load File from Input", 
                   command=self.load_from_input_folder).grid(row=2, column=0, pady=5)
-        
+
         # Output group
         ttk.Label(output_group, text="Output Options:", 
                  style="Subtitle.TLabel").grid(row=0, column=0, pady=(0, 5))
         ttk.Button(output_group, text="Select Output Folder", 
                   command=self.select_output_folder).grid(row=1, column=0)
-        
+
         # Text display area with drop zone functionality
-        text_frame = ttk.LabelFrame(self.parent, text="Transcribed Text", 
+        text_frame = ttk.LabelFrame(main_frame, text="Transcribed Text", 
                                   style="Group.TLabelframe", padding="10")
         text_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=10)
-        
+
         # Add drag-drop instruction label
         drop_label = ttk.Label(text_frame, text="Drop audio file here or use the input options above",
                              font=('Helvetica', 9, 'italic'))
@@ -54,7 +61,7 @@ class SpeechToTextTab:
         # Apply theme colors to text area
         is_dark = self.config.theme == "dark"
         theme = ThemeColors(is_dark)
-        
+
         self.text_area = scrolledtext.ScrolledText(text_frame, height=15, wrap=tk.WORD,
                                                  font=('Helvetica', 10))
         self.text_area.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
@@ -67,12 +74,23 @@ class SpeechToTextTab:
         )
         self.text_area.drop_target_register(DND_FILES)
         self.text_area.dnd_bind('<<Drop>>', self.handle_drop)
-        
+
+        # Progress bar frame - Create it but keep same height whether visible or not
+        progress_frame = ttk.Frame(main_frame)
+        progress_frame.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
+        self.progress_bar = ttk.Progressbar(progress_frame, mode='indeterminate')
+        self.progress_bar.grid(row=0, column=0, sticky=(tk.W, tk.E))
+        # Set a minimum height for the frame to prevent layout shifts
+        progress_frame.grid_propagate(False)
+        progress_frame.configure(height=25)  # Fixed height
+        progress_frame.grid_remove()  # Hidden by default
+        self.progress_frame = progress_frame
+
         # Terminal output area
-        terminal_frame = ttk.LabelFrame(self.parent, text="Process Output", 
+        terminal_frame = ttk.LabelFrame(main_frame, text="Process Output", 
                                       style="Group.TLabelframe", padding="10")
-        terminal_frame.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=10)
-        
+        terminal_frame.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=10)
+
         self.terminal_area = scrolledtext.ScrolledText(terminal_frame, height=8, wrap=tk.WORD,
                                                      font=('Helvetica', 10))
         self.terminal_area.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
@@ -84,21 +102,21 @@ class SpeechToTextTab:
             selectforeground=theme.selection_fg,
             state='disabled'
         )
-        
+
         # Control buttons in a labeled frame
-        control_frame = ttk.LabelFrame(self.parent, text="Controls", 
+        control_frame = ttk.LabelFrame(main_frame, text="Controls", 
                                      style="Group.TLabelframe", padding="10")
-        control_frame.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
-        
+        control_frame.grid(row=4, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
+
         # Center the buttons in the control frame
         control_frame.columnconfigure(0, weight=1)
-        control_frame.columnconfigure(5, weight=1)
-        
+        control_frame.columnconfigure(7, weight=1)
+
         self.start_button = ttk.Button(control_frame, text="Start Conversion", 
                                      command=self.start_conversion,
                                      style='Action.TButton')
         self.start_button.grid(row=0, column=1, padx=10)
-        
+
         self.cancel_button = ttk.Button(control_frame, text="Cancel", 
                                       command=self.cancel_conversion,
                                       style='Cancel.TButton',
@@ -109,13 +127,41 @@ class SpeechToTextTab:
                                          command=self.save_transcribed_text,
                                          state=tk.DISABLED)
         self.save_text_button.grid(row=0, column=3, padx=10)
-        
+
+        self.send_to_tts_button = ttk.Button(control_frame, text="Send to TTS", 
+                                           command=self.send_to_tts,
+                                           state=tk.DISABLED)
+        self.send_to_tts_button.grid(row=0, column=4, padx=10)
+
         # Configure grid weights
         self.parent.columnconfigure(0, weight=1)
         text_frame.columnconfigure(0, weight=1)
         text_frame.rowconfigure(1, weight=1)
         terminal_frame.columnconfigure(0, weight=1)
         terminal_frame.rowconfigure(0, weight=1)
+        progress_frame.columnconfigure(0, weight=1)
+
+    def show_progress(self):
+        """Show and start the progress bar"""
+        self.progress_frame.grid()
+        self.progress_bar.start(10)
+
+    def hide_progress(self):
+        """Hide and stop the progress bar"""
+        self.progress_bar.stop()
+        self.progress_frame.grid_remove()
+
+    def send_to_tts(self):
+        """Send transcribed text to Text-to-Speech tab"""
+        if self.tts_tab:
+            text = self.text_area.get(1.0, tk.END).strip()
+            if text:
+                self.tts_tab.set_text(text)
+                self.terminal_callback("Text sent to Text-to-Speech tab")
+            else:
+                messagebox.showwarning("Warning", "No text to send")
+        else:
+            messagebox.showerror("Error", "Text-to-Speech tab not available")
 
     def _save_text_to_file(self, text):
         os.makedirs(self.config.transcribes_folder, exist_ok=True)
@@ -244,6 +290,7 @@ class SpeechToTextTab:
                 self.cancel_button.state(['!disabled'])
                 self.terminal_callback("Converting audio to text...")
                 self.cancel_flag = False
+                self.show_progress()
                 
                 self.current_process = threading.Thread(
                     target=self._conversion_thread,
@@ -255,6 +302,7 @@ class SpeechToTextTab:
                 logging.error(f"Error starting conversion: {e}", exc_info=True)
                 messagebox.showerror("Error", f"Failed to start conversion: {str(e)}")
                 self._reset_buttons()
+                self.hide_progress()
 
     def _conversion_thread(self, file_path):
         """Thread for audio to text conversion"""
@@ -276,18 +324,22 @@ class SpeechToTextTab:
         self.terminal_callback("Conversion completed successfully")
         self._reset_buttons()
         self.save_text_button.configure(state=tk.NORMAL)
+        self.send_to_tts_button.configure(state=tk.NORMAL)
+        self.hide_progress()
 
     def _conversion_error(self, error_msg):
         """Handle conversion error"""
         messagebox.showerror("Error", f"Conversion failed: {error_msg}")
         self.terminal_callback("Conversion failed")
         self._reset_buttons()
+        self.hide_progress()
 
     def cancel_conversion(self):
         """Cancel ongoing conversion"""
         self.cancel_flag = True
         self.terminal_callback("Canceling...")
         self._reset_buttons()
+        self.hide_progress()
 
     def _reset_buttons(self):
         """Reset button states"""
