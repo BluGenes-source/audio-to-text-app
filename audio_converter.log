@@ -213,3 +213,41 @@ TypeError: makedirs() got an unexpected keyword argument 'exist_okay'
 2025-02-27 04:58:24,576 - INFO - Using writeable comtypes cache directory: 'J:\Dev\Python\TTS_Local\.venv\lib\site-packages\comtypes\gen'
 2025-02-27 04:58:25,391 - INFO - Application started
 2025-02-27 04:58:25,399 - INFO - Found FFmpeg at: J:\Dev\Python\TTS_Local\audio-to-text-app\modules\audio\..\..\tools\ffmpeg.exe
+2025-02-27 13:25:46,256 - INFO - Found FFmpeg in system PATH
+2025-02-27 13:25:46,367 - INFO - Imported existing <module 'comtypes.gen' from 'J:\\Dev\\Python\\TTS_Local\\.venv\\lib\\site-packages\\comtypes\\gen\\__init__.py'>
+2025-02-27 13:25:46,368 - INFO - Using writeable comtypes cache directory: 'J:\Dev\Python\TTS_Local\.venv\lib\site-packages\comtypes\gen'
+2025-02-27 13:25:46,929 - INFO - Application started
+2025-02-27 13:25:46,987 - INFO - Found FFmpeg in system PATH
+2025-02-27 13:25:46,987 - INFO - Found FFmpeg at: ffmpeg
+2025-02-27 13:26:32,945 - ERROR - Error playing audio: [WinError 2] The system cannot find the file specified
+2025-02-27 13:28:37,377 - INFO - Found FFmpeg in system PATH
+2025-02-27 13:28:37,481 - INFO - Imported existing <module 'comtypes.gen' from 'J:\\Dev\\Python\\TTS_Local\\.venv\\lib\\site-packages\\comtypes\\gen\\__init__.py'>
+2025-02-27 13:28:37,481 - INFO - Using writeable comtypes cache directory: 'J:\Dev\Python\TTS_Local\.venv\lib\site-packages\comtypes\gen'
+2025-02-27 13:28:38,061 - INFO - Application started
+2025-02-27 13:28:38,100 - INFO - Found FFmpeg in system PATH
+2025-02-27 13:28:38,101 - INFO - Found FFmpeg at: ffmpeg
+2025-02-27 13:29:18,046 - ERROR - Error playing audio: [WinError 2] The system cannot find the file specified
+2025-02-27 13:32:01,846 - INFO - Found FFmpeg tools in tools directory: J:\Dev\Python\TTS_Local\audio-to-text-app\modules\audio\..\..\tools
+2025-02-27 13:32:01,970 - INFO - Imported existing <module 'comtypes.gen' from 'J:\\Dev\\Python\\TTS_Local\\.venv\\lib\\site-packages\\comtypes\\gen\\__init__.py'>
+2025-02-27 13:32:01,970 - INFO - Using writeable comtypes cache directory: 'J:\Dev\Python\TTS_Local\.venv\lib\site-packages\comtypes\gen'
+2025-02-27 13:32:02,556 - INFO - Application started
+2025-02-27 13:32:02,644 - INFO - Found FFmpeg tools in tools directory: J:\Dev\Python\TTS_Local\audio-to-text-app\modules\audio\..\..\tools
+2025-02-27 13:32:02,644 - INFO - Found FFmpeg at: J:\Dev\Python\TTS_Local\audio-to-text-app\modules\audio\..\..\tools\ffmpeg.exe
+2025-02-27 13:38:55,249 - INFO - Found FFmpeg tools in tools directory: J:\Dev\Python\TTS_Local\audio-to-text-app\modules\audio\..\..\tools
+2025-02-27 13:38:55,364 - INFO - Imported existing <module 'comtypes.gen' from 'J:\\Dev\\Python\\TTS_Local\\.venv\\lib\\site-packages\\comtypes\\gen\\__init__.py'>
+2025-02-27 13:38:55,364 - INFO - Using writeable comtypes cache directory: 'J:\Dev\Python\TTS_Local\.venv\lib\site-packages\comtypes\gen'
+2025-02-27 13:38:55,967 - INFO - Application started
+2025-02-27 13:38:56,053 - INFO - Found FFmpeg tools in tools directory: J:\Dev\Python\TTS_Local\audio-to-text-app\modules\audio\..\..\tools
+2025-02-27 13:38:56,053 - INFO - Found FFmpeg at: J:\Dev\Python\TTS_Local\audio-to-text-app\modules\audio\..\..\tools\ffmpeg.exe
+2025-02-27 13:56:32,061 - INFO - Found FFmpeg tools in tools directory: J:\Dev\Python\TTS_Local\audio-to-text-app\modules\audio\..\..\tools
+2025-02-27 13:56:32,170 - INFO - Imported existing <module 'comtypes.gen' from 'J:\\Dev\\Python\\TTS_Local\\.venv\\lib\\site-packages\\comtypes\\gen\\__init__.py'>
+2025-02-27 13:56:32,170 - INFO - Using writeable comtypes cache directory: 'J:\Dev\Python\TTS_Local\.venv\lib\site-packages\comtypes\gen'
+2025-02-27 13:56:32,842 - INFO - Application started
+2025-02-27 13:56:32,950 - INFO - Found FFmpeg tools in tools directory: J:\Dev\Python\TTS_Local\audio-to-text-app\modules\audio\..\..\tools
+2025-02-27 13:56:32,950 - INFO - Found FFmpeg at: J:\Dev\Python\TTS_Local\audio-to-text-app\modules\audio\..\..\tools\ffmpeg.exe
+2025-02-27 14:00:11,906 - INFO - Found FFmpeg tools in tools directory: J:\Dev\Python\TTS_Local\audio-to-text-app\modules\audio\..\..\tools
+2025-02-27 14:00:12,023 - INFO - Imported existing <module 'comtypes.gen' from 'J:\\Dev\\Python\\TTS_Local\\.venv\\lib\\site-packages\\comtypes\\gen\\__init__.py'>
+2025-02-27 14:00:12,023 - INFO - Using writeable comtypes cache directory: 'J:\Dev\Python\TTS_Local\.venv\lib\site-packages\comtypes\gen'
+2025-02-27 14:00:12,698 - INFO - Application started
+2025-02-27 14:00:12,879 - INFO - Found FFmpeg tools in tools directory: J:\Dev\Python\TTS_Local\audio-to-text-app\modules\audio\..\..\tools
+2025-02-27 14:00:12,880 - INFO - Found FFmpeg at: J:\Dev\Python\TTS_Local\audio-to-text-app\modules\audio\..\..\tools\ffmpeg.exe

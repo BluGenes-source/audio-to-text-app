@@ -89,6 +89,22 @@ class SettingsTab:
         ttk.Button(color_frame, text="Choose Color",
                   command=lambda: self.choose_color('button_ready')).grid(row=3, column=2, padx=5)
 
+        ttk.Label(color_frame, text="Success Button:").grid(row=4, column=0, padx=5, pady=5)
+        self.button_success_color = tk.StringVar(value=self.config.button_success_color or "#4caf50")
+        self.button_success_preview = tk.Frame(color_frame, width=30, height=20,
+                                           bg=self.button_success_color.get())
+        self.button_success_preview.grid(row=4, column=1, padx=5)
+        ttk.Button(color_frame, text="Choose Color",
+                  command=lambda: self.choose_color('button_success')).grid(row=4, column=2, padx=5)
+
+        ttk.Label(color_frame, text="Disabled Color:").grid(row=5, column=0, padx=5, pady=5)
+        self.disabled_color = tk.StringVar(value=self.config.disabled_color or "#e0e0e0")
+        self.disabled_preview = tk.Frame(color_frame, width=30, height=20,
+                                     bg=self.disabled_color.get())
+        self.disabled_preview.grid(row=5, column=1, padx=5)
+        ttk.Button(color_frame, text="Choose Color",
+                  command=lambda: self.choose_color('disabled')).grid(row=5, column=2, padx=5)
+
         # Preview section
         preview_frame = ttk.LabelFrame(main_frame, text="Preview", padding="10")
         preview_frame.grid(row=3, column=0, sticky="ew", pady=(0, 10))
@@ -111,15 +127,19 @@ class SettingsTab:
         preview_frame.columnconfigure(0, weight=1)
 
     def choose_color(self, color_type):
-        current_color = self.accent_color.get() if color_type == 'accent' else self.text_color.get()
+        """Handle color chooser for different color settings"""
         if color_type == 'accent':
             current_color = self.accent_color.get()
         elif color_type == 'text':
             current_color = self.text_color.get()
         elif color_type == 'button_inactive':
             current_color = self.button_inactive_color.get()
-        else:  # button_ready
+        elif color_type == 'button_ready':
             current_color = self.button_ready_color.get()
+        elif color_type == 'button_success':
+            current_color = self.button_success_color.get()
+        else:  # disabled
+            current_color = self.disabled_color.get()
 
         color = colorchooser.askcolor(color=current_color)
         if color[1]:
@@ -132,9 +152,15 @@ class SettingsTab:
             elif color_type == 'button_inactive':
                 self.button_inactive_color.set(color[1])
                 self.button_inactive_preview.configure(bg=color[1])
-            else:  # button_ready
+            elif color_type == 'button_ready':
                 self.button_ready_color.set(color[1])
                 self.button_ready_preview.configure(bg=color[1])
+            elif color_type == 'button_success':
+                self.button_success_color.set(color[1])
+                self.button_success_preview.configure(bg=color[1])
+            else:  # disabled
+                self.disabled_color.set(color[1])
+                self.disabled_preview.configure(bg=color[1])
             self.apply_settings()
 
     def apply_settings(self):
@@ -149,6 +175,8 @@ class SettingsTab:
         self.config.text_color = self.text_color.get()
         self.config.button_inactive_color = self.button_inactive_color.get()
         self.config.button_ready_color = self.button_ready_color.get()
+        self.config.button_success_color = self.button_success_color.get()
+        self.config.disabled_color = self.disabled_color.get()
 
         # Update preview
         self.preview_text.configure(

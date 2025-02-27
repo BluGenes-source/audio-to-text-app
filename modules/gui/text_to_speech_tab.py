@@ -47,6 +47,7 @@ class TextToSpeechTab:
         # Format frame
         format_frame = ttk.Frame(text_frame)
         format_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 5))
+        format_frame.columnconfigure(14, weight=1)  # Add weight to last column
         
         # Drop label
         drop_label = ttk.Label(format_frame, 
@@ -55,37 +56,48 @@ class TextToSpeechTab:
         drop_label.grid(row=0, column=0, pady=(0, 5))
         
         # Format controls
-        self.pause_length = tk.StringVar(value="500")
+        self.short_pause_length = tk.StringVar(value="300")
+        self.long_pause_length = tk.StringVar(value="800")
         self.pause_marker = tk.StringVar(value="|")
         
-        # Controls layout
-        ttk.Label(format_frame, text="Pause Length (ms):").grid(row=0, column=1, padx=(20, 5))
-        pause_entry = ttk.Entry(format_frame, textvariable=self.pause_length, width=8)
-        pause_entry.grid(row=0, column=2, padx=5)
+        # Controls layout - now in two rows
+        # First row - pause controls
+        ttk.Label(format_frame, text="Short Pause (ms):").grid(row=0, column=0, padx=(5, 2))
+        short_pause_entry = ttk.Entry(format_frame, textvariable=self.short_pause_length, width=6)
+        short_pause_entry.grid(row=0, column=1, padx=2)
         
-        ttk.Label(format_frame, text="Pause Marker:").grid(row=0, column=3, padx=(20, 5))
+        ttk.Label(format_frame, text="Long Pause (ms):").grid(row=0, column=2, padx=(5, 2))
+        long_pause_entry = ttk.Entry(format_frame, textvariable=self.long_pause_length, width=6)
+        long_pause_entry.grid(row=0, column=3, padx=2)
+        
+        ttk.Label(format_frame, text="Pause Marker:").grid(row=0, column=4, padx=(5, 2))
         marker_entry = ttk.Entry(format_frame, textvariable=self.pause_marker, width=3)
-        marker_entry.grid(row=0, column=4, padx=5)
+        marker_entry.grid(row=0, column=5, padx=2)
         
-        insert_marker_btn = ttk.Button(format_frame, text="Insert Pause",
-                                     command=self.insert_pause_marker)
-        insert_marker_btn.grid(row=0, column=5, padx=10)
+        # Second row - action buttons
+        insert_short_btn = ttk.Button(format_frame, text="Insert Short Pause",
+                                   command=lambda: self.insert_pause_marker(True))
+        insert_short_btn.grid(row=1, column=0, columnspan=2, padx=2, pady=(5,0))
+
+        insert_long_btn = ttk.Button(format_frame, text="Insert Long Pause",
+                                  command=lambda: self.insert_pause_marker(False))
+        insert_long_btn.grid(row=1, column=2, columnspan=2, padx=2, pady=(5,0))
 
         auto_pause_btn = ttk.Button(format_frame, text="Auto-Add Pauses",
-                                  command=self.auto_add_pauses)
-        auto_pause_btn.grid(row=0, column=6, padx=10)
+                                 command=self.auto_add_pauses)
+        auto_pause_btn.grid(row=1, column=4, columnspan=2, padx=2, pady=(5,0))
         
         format_btn = ttk.Button(format_frame, text="Format Text",
-                              command=self.format_text)
-        format_btn.grid(row=0, column=7, padx=10)
+                             command=self.format_text)
+        format_btn.grid(row=1, column=6, columnspan=2, padx=2, pady=(5,0))
 
         save_text_btn = ttk.Button(format_frame, text="Save Text",
-                                 command=self.save_tts_text)
-        save_text_btn.grid(row=0, column=8, padx=10)
+                                command=self.save_tts_text)
+        save_text_btn.grid(row=1, column=8, columnspan=2, padx=2, pady=(5,0))
 
         clear_text_btn = ttk.Button(format_frame, text="Clear Text",
-                                  command=self.clear_text)
-        clear_text_btn.grid(row=0, column=9, padx=10)
+                                 command=self.clear_text)
+        clear_text_btn.grid(row=1, column=10, columnspan=2, padx=2, pady=(5,0))
         
         # Text area
         self.tts_text_area = scrolledtext.ScrolledText(text_frame, height=15, wrap=tk.WORD,
@@ -224,37 +236,43 @@ class TextToSpeechTab:
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to load text file: {str(e)}")
 
-    def insert_pause_marker(self):
+    def insert_pause_marker(self, is_short=True):
         """Insert pause marker at current cursor position"""
         try:
             current_pos = self.tts_text_area.index(tk.INSERT)
-            self.tts_text_area.insert(current_pos, self.pause_marker.get())
-            self.update_status(f"Inserted pause marker at position {current_pos}")
+            pause_ms = self.short_pause_length.get() if is_short else self.long_pause_length.get()
+            marker = f"<break time=\"{int(pause_ms)/1000}s\"/>"
+            self.tts_text_area.insert(current_pos, marker)
+            self.update_status(f"Inserted {'short' if is_short else 'long'} pause marker")
+        except ValueError:
+            messagebox.showerror("Error", "Invalid pause length value")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to insert pause marker: {str(e)}")
 
     def auto_add_pauses(self):
         """Automatically add pause markers after periods"""
         try:
-            text = self.tts_text_area.get(1.0, tk.END)
-            if not text.strip():
+            text = self.tts_text_area.get(1.0, tk.END).strip()
+            if not text:
                 messagebox.showwarning("Warning", "No text to process")
+                return
+            
+            # Check if there are any periods in the text
+            if '.' not in text:
+                messagebox.showwarning("Warning", "No periods found in text. Cannot add pauses.")
                 return
 
             # Get current cursor position
             current_pos = self.tts_text_area.index(tk.INSERT)
             
-            # Add pause marker after periods if one doesn't already exist
-            marker = self.pause_marker.get()
-            modified_text = ""
-            last_char = ""
+            # Add pause markers after periods
+            short_pause = f"<break time=\"{int(self.short_pause_length.get())/1000}s\"/>"
+            long_pause = f"<break time=\"{int(self.long_pause_length.get())/1000}s\"/>"
             
-            for char in text:
-                modified_text += char
-                if char == '.' and last_char != marker:
-                    modified_text += marker
-                last_char = char
-
+            # Add long pauses after periods and short pauses after commas
+            modified_text = text.replace('. ', f'. {long_pause} ')
+            modified_text = modified_text.replace(', ', f', {short_pause} ')
+            
             # Update text area
             self.tts_text_area.delete(1.0, tk.END)
             self.tts_text_area.insert(1.0, modified_text)
@@ -265,8 +283,10 @@ class TextToSpeechTab:
             except:
                 pass
 
-            self.update_status("Added pause markers after periods")
+            self.update_status("Added pause markers after periods and commas")
             
+        except ValueError:
+            messagebox.showerror("Error", "Invalid pause length value")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to add pause markers: {str(e)}")
 

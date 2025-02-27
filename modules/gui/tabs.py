@@ -19,12 +19,23 @@ class SpeechToTextTab:
         self.current_audio_file = None  # Store the selected audio file path
         self.current_filename_var = tk.StringVar(value="-Empty-")  # Add filename variable
         self.conversion_in_progress = False
+        self.audio_queue = []  # Store queued audio files
         self.setup_tab()
 
     def setup_tab(self):
+        # Split main frame into left and right sections
+        left_frame = ttk.Frame(self.parent, padding="10")
+        left_frame.grid(row=0, column=0, sticky="nsew")
+        
+        right_frame = ttk.Frame(self.parent, padding="10")
+        right_frame.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
+        
+        # Configure column weights
+        self.parent.columnconfigure(0, weight=3)  # Left side gets more space
+        self.parent.columnconfigure(1, weight=1)  # Right side gets less space
+
         # Main container with padding
-        main_frame = ttk.Frame(self.parent, padding="10")
-        main_frame.grid(row=0, column=0, sticky="nsew")
+        main_frame = left_frame
 
         # Folder settings frame
         folder_frame = ttk.LabelFrame(main_frame, text="Folder Settings", 
@@ -154,6 +165,9 @@ class SpeechToTextTab:
         )
         self.text_area.drop_target_register(DND_FILES)
         self.text_area.dnd_bind('<<Drop>>', self.handle_drop)
+        
+        # Bind text change event to update button states
+        self.text_area.bind('<<Modified>>', self.check_text_content)
 
         # Add play/stop audio controls
         audio_control_frame = ttk.Frame(text_frame)
@@ -180,6 +194,48 @@ class SpeechToTextTab:
         progress_frame.columnconfigure(0, weight=1)
         button_frame.grid_columnconfigure(3, weight=1)
 
+        # Queue frame in right section
+        queue_frame = ttk.LabelFrame(right_frame, text="Audio Queue", 
+                                   style="Group.TLabelframe", padding="10")
+        queue_frame.grid(row=0, column=0, sticky="nsew")
+        
+        # Queue controls
+        queue_controls = ttk.Frame(queue_frame)
+        queue_controls.grid(row=0, column=0, sticky="ew", pady=(0, 5))
+        
+        ttk.Button(queue_controls, text="Add to Queue",
+                  command=self.add_to_queue).grid(row=0, column=0, padx=2)
+        ttk.Button(queue_controls, text="Remove Selected",
+                  command=self.remove_from_queue).grid(row=0, column=1, padx=2)
+        ttk.Button(queue_controls, text="Clear Queue",
+                  command=self.clear_queue).grid(row=0, column=2, padx=2)
+        
+        # Queue listbox
+        self.queue_listbox = tk.Listbox(queue_frame, height=15,
+                                      selectmode=tk.SINGLE)
+        self.queue_listbox.grid(row=1, column=0, sticky="nsew")
+        
+        # Queue scrollbar
+        queue_scrollbar = ttk.Scrollbar(queue_frame,
+                                      orient="vertical",
+                                      command=self.queue_listbox.yview)
+        queue_scrollbar.grid(row=1, column=1, sticky="ns")
+        self.queue_listbox.configure(yscrollcommand=queue_scrollbar.set)
+        
+        # Process queue button
+        ttk.Button(queue_frame, text="Process Queue",
+                  command=self.process_queue,
+                  style='Action.Ready.TButton').grid(row=2, column=0,
+                                                   columnspan=2,
+                                                   sticky="ew",
+                                                   pady=(5, 0))
+
+        # Configure weights for queue frame
+        queue_frame.columnconfigure(0, weight=1)
+        queue_frame.rowconfigure(1, weight=1)
+        right_frame.columnconfigure(0, weight=1)
+        right_frame.rowconfigure(0, weight=1)
+
     def show_progress(self):
         """Show and start the progress bar"""
         self.progress_frame.grid()
@@ -197,8 +253,10 @@ class SpeechToTextTab:
             if text:
                 self.tts_tab.set_text(text)
                 self.terminal_callback("Text sent to Text-to-Speech tab")
+                self.send_to_tts_button.configure(style='Action.Success.TButton')  # Show success state
             else:
                 messagebox.showwarning("Warning", "No text to send")
+                self.send_to_tts_button.configure(state=tk.DISABLED)
         else:
             messagebox.showerror("Error", "Text-to-Speech tab not available")
 
@@ -303,7 +361,7 @@ class SpeechToTextTab:
             self.terminal_callback(f"Audio file ready: {os.path.basename(file_path)}")
             self.start_button.configure(style='Action.Ready.TButton')  # Change to ready style
 
-    def start_conversion(self, file_path=None):
+    def start_conversion(self, file_path=None, queue_mode=False):
         """Start audio to text conversion"""
         if self.conversion_in_progress:
             return
@@ -394,6 +452,28 @@ class SpeechToTextTab:
         self.current_audio_file = None  # Clear current file
         self.conversion_in_progress = False
 
+        if text:
+            self.text_area.insert(tk.END, f"\n\n[{os.path.basename(self.current_audio_file)}]\n")
+            self.text_area.insert(tk.END, text)
+            self.terminal_callback("Conversion completed successfully")
+            self.save_text_button.configure(state=tk.NORMAL)
+            self.send_to_tts_button.configure(state=tk.NORMAL)
+            self.play_button.configure(state=tk.NORMAL)
+            
+            # If in queue mode, process next file
+            if self.audio_queue and self.current_audio_file == self.audio_queue[0]:
+                self.audio_queue.pop(0)
+                self.queue_listbox.delete(0)
+                self.process_next_in_queue()
+            else:
+                self._reset_buttons()
+        
+        self.hide_progress()
+        self.start_button.configure(style='Action.Ready.TButton')  # Reset to ready style
+        self.current_filename_var.set("-Empty-")
+        self.current_audio_file = None
+        self.conversion_in_progress = False
+
     def _conversion_error(self, error_msg):
         """Handle conversion error"""
         messagebox.showerror("Error", f"Conversion failed: {error_msg}")
@@ -426,9 +506,7 @@ class SpeechToTextTab:
             if messagebox.askyesno("Confirm Clear", "Are you sure you want to clear all text?"):
                 self.text_area.delete(1.0, tk.END)
                 self.terminal_callback("Text cleared")
-                self.save_text_button.configure(state=tk.DISABLED)
-                self.send_to_tts_button.configure(state=tk.DISABLED)
-                self.start_button.configure(style='Action.Inactive.TButton')
+                self.check_text_content()  # Update button states
 
     def clear_selected_file(self):
         """Clear the selected audio file"""
@@ -521,3 +599,73 @@ class SpeechToTextTab:
         if self.current_audio_file and os.path.exists(self.current_audio_file):
             self.play_button.configure(state=tk.NORMAL)
         self.stop_button.configure(state=tk.DISABLED)
+
+    def add_to_queue(self):
+        """Add current audio file to queue"""
+        if not self.current_audio_file:
+            messagebox.showwarning("Warning", "No audio file selected")
+            return
+            
+        if self.current_audio_file in self.audio_queue:
+            messagebox.showwarning("Warning", "File already in queue")
+            return
+            
+        self.audio_queue.append(self.current_audio_file)
+        self.queue_listbox.insert(tk.END, os.path.basename(self.current_audio_file))
+        self.clear_selected_file()  # Clear current selection after adding to queue
+
+    def remove_from_queue(self):
+        """Remove selected file from queue"""
+        selection = self.queue_listbox.curselection()
+        if not selection:
+            messagebox.showwarning("Warning", "No file selected in queue")
+            return
+            
+        index = selection[0]
+        self.audio_queue.pop(index)
+        self.queue_listbox.delete(index)
+
+    def clear_queue(self):
+        """Clear entire queue"""
+        if self.queue_listbox.size() > 0:
+            if messagebox.askyesno("Confirm", "Clear entire queue?"):
+                self.audio_queue.clear()
+                self.queue_listbox.delete(0, tk.END)
+
+    def process_queue(self):
+        """Process all files in the queue"""
+        if not self.audio_queue:
+            messagebox.showwarning("Warning", "Queue is empty")
+            return
+            
+        if self.conversion_in_progress:
+            messagebox.showwarning("Warning", "Conversion already in progress")
+            return
+            
+        self.process_next_in_queue()
+
+    def process_next_in_queue(self):
+        """Process next file in the queue"""
+        if not self.audio_queue:
+            self.conversion_in_progress = False
+            self.terminal_callback("Queue processing complete")
+            return
+            
+        next_file = self.audio_queue[0]
+        self.current_audio_file = next_file
+        self.current_filename_var.set(os.path.basename(next_file))
+        self.start_conversion(queue_mode=True)
+
+    def check_text_content(self, event=None):
+        """Check if text area has content and update button states"""
+        text = self.text_area.get(1.0, tk.END).strip()
+        
+        if text:
+            self.send_to_tts_button.configure(state=tk.NORMAL)
+            self.save_text_button.configure(state=tk.NORMAL)
+        else:
+            self.send_to_tts_button.configure(state=tk.DISABLED)
+            self.save_text_button.configure(state=tk.DISABLED)
+        
+        # Reset the modified flag
+        self.text_area.edit_modified(False)

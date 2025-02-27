@@ -27,6 +27,8 @@ class ConfigManager:
         self.text_color = "#000000"
         self.button_inactive_color = "#cccccc"
         self.button_ready_color = "#2962ff"
+        self.button_success_color = "#4caf50"
+        self.disabled_color = "#e0e0e0"
         
         self.load_config()
 
@@ -52,6 +54,8 @@ class ConfigManager:
                 self.text_color = config.get('text_color', "#000000")
                 self.button_inactive_color = config.get('button_inactive_color', '#cccccc')
                 self.button_ready_color = config.get('button_ready_color', '#2962ff')
+                self.button_success_color = config.get('button_success_color', '#4caf50')
+                self.disabled_color = config.get('disabled_color', '#e0e0e0')
             except:
                 self._set_defaults()
         else:
@@ -77,7 +81,9 @@ class ConfigManager:
             'accent_color': self.accent_color,
             'text_color': self.text_color,
             'button_inactive_color': self.button_inactive_color,
-            'button_ready_color': self.button_ready_color
+            'button_ready_color': self.button_ready_color,
+            'button_success_color': self.button_success_color,
+            'disabled_color': self.disabled_color
         }
         try:
             with open(self.config_file, 'w') as f:
@@ -96,3 +102,5 @@ class ConfigManager:
         self.text_color = "#000000"
         self.button_inactive_color = "#cccccc"
         self.button_ready_color = "#2962ff"
+        self.button_success_color = "#4caf50"
+        self.disabled_color = "#e0e0e0"

@@ -19,6 +19,9 @@ class ThemeColors:
             # Button state colors
             self.button_inactive = config.button_inactive_color if config else "#666666"
             self.button_ready = config.button_ready_color if config else "#2962ff"
+            self.button_success = config.button_success_color if config else "#4caf50"
+            self.disabled_bg = config.disabled_color if config else "#444444"
+            self.disabled_fg = "#888888"
         else:
             # Light theme colors
             self.bg = "#f5f5f5"
@@ -36,6 +39,9 @@ class ThemeColors:
             # Button state colors
             self.button_inactive = config.button_inactive_color if config else "#cccccc"
             self.button_ready = config.button_ready_color if config else "#2962ff"
+            self.button_success = config.button_success_color if config else "#4caf50"
+            self.disabled_bg = config.disabled_color if config else "#e0e0e0"
+            self.disabled_fg = "#a0a0a0"
 
 def setup_styles(config=None):
     """Configure custom ttk styles for the application"""
@@ -233,10 +239,10 @@ def setup_styles(config=None):
     style.map("Audio.Play.TButton",
              background=[("active", "#388e3c"),
                         ("pressed", "#388e3c"),
-                        ("disabled", "#cccccc")],
+                        ("disabled", theme.disabled_bg)],
              foreground=[("active", theme.button_fg),
                         ("pressed", theme.button_fg),
-                        ("disabled", "#666666")])
+                        ("disabled", theme.disabled_fg)])
     
     style.configure("Audio.Stop.TButton",
                    background="#f44336",
@@ -245,16 +251,16 @@ def setup_styles(config=None):
     style.map("Audio.Stop.TButton",
              background=[("active", "#d32f2f"),
                         ("pressed", "#d32f2f"),
-                        ("disabled", "#cccccc")],
+                        ("disabled", theme.disabled_bg)],
              foreground=[("active", theme.button_fg),
                         ("pressed", theme.button_fg),
-                        ("disabled", "#666666")])
+                        ("disabled", theme.disabled_fg)])
 
     return style
 
 class AppDimensions:
     """Class to handle default window dimensions"""
-    DEFAULT_WIDTH = 800
-    DEFAULT_HEIGHT = 600
-    min_width = 600  # Changed from MIN_WIDTH to min_width
-    min_height = 400  # Changed from MIN_HEIGHT to min_height
+    DEFAULT_WIDTH = 1400  # Increased from 1200 to accommodate all buttons
+    DEFAULT_HEIGHT = 800
+    min_width = 1200  # Increased minimum width to ensure buttons don't get cut off
+    min_height = 600
