@@ -20,6 +20,7 @@ class SpeechToTextTab:
         self.current_filename_var = tk.StringVar(value="-Empty-")  # Add filename variable
         self.conversion_in_progress = False
         self.audio_queue = []  # Store queued audio files
+        self.current_font_size = 10  # Add default font size tracking
         self.setup_tab()
 
     def setup_tab(self):
@@ -154,7 +155,7 @@ class SpeechToTextTab:
 
         # Make text area 25% smaller by reducing height from 15 to 11
         self.text_area = scrolledtext.ScrolledText(text_frame, height=12, wrap=tk.WORD,
-                                                 font=('Helvetica', 10))
+                                                 font=('Helvetica', self.current_font_size))
         self.text_area.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
         self.text_area.configure(
             background=theme.input_bg,
@@ -165,6 +166,7 @@ class SpeechToTextTab:
         )
         self.text_area.drop_target_register(DND_FILES)
         self.text_area.dnd_bind('<<Drop>>', self.handle_drop)
+        self.text_area.bind('<Control-Button-2>', self.handle_font_size_change)
         
         # Bind text change event to update button states
         self.text_area.bind('<<Modified>>', self.check_text_content)
@@ -669,3 +671,24 @@ class SpeechToTextTab:
         
         # Reset the modified flag
         self.text_area.edit_modified(False)
+
+    def handle_font_size_change(self, event):
+        """Handle font size changes with Control + middle mouse button"""
+        try:
+            # Get the direction of scroll (up or down)
+            if event.delta > 0 or (hasattr(event, 'num') and event.num == 4):
+                self.current_font_size = min(self.current_font_size + 1, 24)
+            else:
+                self.current_font_size = max(self.current_font_size - 1, 8)
+            
+            # Update font size
+            current_font = self.text_area['font']
+            if isinstance(current_font, str):
+                font_family = 'Helvetica'
+            else:
+                font_family = current_font[0]
+            
+            self.text_area.configure(font=(font_family, self.current_font_size))
+            self.terminal_callback(f"Font size: {self.current_font_size}")
+        except Exception as e:
+            self.terminal_callback(f"Error adjusting font size: {str(e)}")

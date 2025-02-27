@@ -18,6 +18,7 @@ class TextToSpeechTab:
         self.audio_playing = False
         self.cancel_flag = False
         self.auto_insert_enabled = False  # Add this line
+        self.current_font_size = 10  # Add default font size tracking
         self.setup_tab()
 
     def setup_tab(self):
@@ -106,9 +107,9 @@ class TextToSpeechTab:
                                  command=self.clear_text)
         clear_text_btn.grid(row=1, column=10, columnspan=2, padx=2, pady=(5,0))
         
-        # Text area
+        # Text area with mouse bindings
         self.tts_text_area = scrolledtext.ScrolledText(text_frame, height=15, wrap=tk.WORD,
-                                                     font=('Helvetica', 10))
+                                                     font=('Helvetica', self.current_font_size))
         self.tts_text_area.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
         self.tts_text_area.configure(
             background=theme.input_bg,
@@ -119,8 +120,9 @@ class TextToSpeechTab:
         )
         self.tts_text_area.drop_target_register(DND_FILES)
         self.tts_text_area.dnd_bind('<<Drop>>', self.handle_text_drop)
-        # Add click binding for auto-insert
+        # Add click binding for auto-insert and mouse wheel binding for font size
         self.tts_text_area.bind('<Button-1>', self.handle_text_click)
+        self.tts_text_area.bind('<Control-Button-2>', self.handle_font_size_change)
         
         # Voice options
         self.setup_voice_options()
@@ -538,3 +540,24 @@ class TextToSpeechTab:
                 return "break"  # Prevent default click behavior
             except Exception as e:
                 self.update_status(f"Error in auto-insert: {str(e)}")
+
+    def handle_font_size_change(self, event):
+        """Handle font size changes with Control + middle mouse button"""
+        try:
+            # Get the direction of scroll (up or down)
+            if event.delta > 0 or (hasattr(event, 'num') and event.num == 4):
+                self.current_font_size = min(self.current_font_size + 1, 24)
+            else:
+                self.current_font_size = max(self.current_font_size - 1, 8)
+            
+            # Update font size
+            current_font = self.tts_text_area['font']
+            if isinstance(current_font, str):
+                font_family = 'Helvetica'
+            else:
+                font_family = current_font[0]
+            
+            self.tts_text_area.configure(font=(font_family, self.current_font_size))
+            self.update_status(f"Font size: {self.current_font_size}")
+        except Exception as e:
+            self.update_status(f"Error adjusting font size: {str(e)}")
