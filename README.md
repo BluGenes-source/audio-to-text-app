@@ -1,66 +1,114 @@
-# Audio to Text Application
+# Audio/Text Converter Application
 
-This project is an audio-to-text conversion application that utilizes speech recognition technology to transcribe audio files into text. 
+A Python desktop application for converting between audio and text, featuring both speech-to-text and text-to-speech capabilities.
 
 ## Features
 
-- Upload audio files for transcription.
-- Convert various audio formats to text.
-- Simple and intuitive API for integration.
+- Speech to Text conversion with support for multiple audio formats (WAV, MP3, FLAC)
+- Text to Speech conversion with both online (Google TTS) and offline (local TTS) options
+- Audio playback with pause/stop controls
+- Customizable user interface with light/dark themes
+- Drag and drop support for files
+- Progress tracking and detailed status updates
+- Automatic pause insertion in text for better speech synthesis
+- Save and load transcriptions
 
-## Technologies Used
+## Requirements
 
-- TypeScript
-- Node.js
-- Express
-- Speech Recognition Library (e.g., Google Cloud Speech-to-Text)
-
-## Project Structure
-
-```
-audio-to-text-app
-├── src
-│   ├── app.ts                  # Entry point of the application
-│   ├── services
-│   │   └── speechRecognitionService.ts  # Service for speech recognition
-│   ├── controllers
-│   │   └── audioController.ts  # Controller for handling audio uploads
-│   ├── routes
-│   │   └── audioRoutes.ts      # Routes for audio processing
-│   └── types
-│       └── index.ts            # Type definitions
-├── package.json                 # NPM package configuration
-├── tsconfig.json                # TypeScript configuration
-└── README.md                    # Project documentation
-```
+- Python 3.10 or higher
+- FFmpeg and FFprobe executables (for audio processing)
+- Required Python packages (see requirements.txt)
 
 ## Installation
 
 1. Clone the repository:
    ```
    git clone <repository-url>
-   ```
-2. Navigate to the project directory:
-   ```
    cd audio-to-text-app
    ```
-3. Install the dependencies:
+
+2. Create and activate a virtual environment (recommended):
    ```
-   npm install
+   python -m venv .venv
+   # On Windows:
+   .venv\Scripts\activate
+   # On Linux/Mac:
+   source .venv/bin/activate
+   ```
+
+3. Install required packages:
+   ```
+   pip install -r requirements.txt
+   ```
+
+4. Install FFmpeg:
+   - Download FFmpeg from https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z
+   - Extract the archive
+   - Copy both ffmpeg.exe AND ffprobe.exe from the bin folder to the 'tools' folder in the application directory
+
+5. Install additional system requirements:
+   - Install the `tkinter` package if not included in your Python installation:
+     ```
+     # On Ubuntu/Debian:
+     sudo apt-get install python3-tk
+     # On Fedora:
+     sudo dnf install python3-tkinter
+     # On Windows:
+     # Tkinter comes with Python installation
+     ```
+
+## Running the Application
+
+1. Make sure your virtual environment is activated
+
+2. Run the main script:
+   ```
+   python main.py
    ```
 
 ## Usage
 
-1. Start the server:
-   ```
-   npm start
-   ```
-2. Use the API to upload audio files for transcription. The endpoint for uploading audio is defined in the routes.
+### Speech to Text
+1. Click "Select Input Folder" to set your audio files location
+2. Either drag and drop an audio file onto the text area or use "Load File from Input"
+3. Click "Start Conversion" to begin transcription
+4. Once complete, you can:
+   - Save the transcribed text
+   - Play back the audio
+   - Send the text to the TTS tab
+
+### Text to Speech
+1. Enter or paste text into the text area
+2. Use the formatting tools to add pauses and improve speech synthesis
+3. Choose between Google TTS (online) or Local TTS (offline)
+4. Select your preferred voice
+5. Click "Generate Speech" to create the audio
+6. Preview the audio and save it if desired
+
+### Settings
+- Choose between light and dark themes
+- Customize fonts and colors
+- All settings are automatically saved
+
+## Troubleshooting
+
+1. FFmpeg Missing Error:
+   - Ensure both ffmpeg.exe and ffprobe.exe are in the tools folder
+   - Both executables must have execute permissions
+
+2. Audio Playback Issues:
+   - Make sure no other application is using your audio device
+   - Try restarting the application if audio becomes unresponsive
+
+3. Speech Recognition Errors:
+   - Ensure you have a working internet connection for Google Speech Recognition
+   - Check that your audio file isn't corrupted
+   - Verify the audio format is supported (WAV, MP3, FLAC)
 
 ## Contributing
 
-Contributions are welcome! Please open an issue or submit a pull request for any improvements or features.
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License - see the LICENSE file for details.
