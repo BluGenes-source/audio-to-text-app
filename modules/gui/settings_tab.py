@@ -105,9 +105,21 @@ class SettingsTab:
         ttk.Button(color_frame, text="Choose Color",
                   command=lambda: self.choose_color('disabled')).grid(row=5, column=2, padx=5)
 
+        # Queue Settings
+        queue_frame = ttk.LabelFrame(main_frame, text="Queue Settings", padding="10")
+        queue_frame.grid(row=3, column=0, sticky="ew", pady=(0, 10))
+
+        ttk.Label(queue_frame, text="Delay between files (seconds):").grid(row=0, column=0, padx=5, pady=5)
+        self.queue_delay = tk.StringVar(value=str(self.config.queue_delay))
+        delay_selector = ttk.Spinbox(queue_frame, from_=0, to=10, width=5,
+                                  textvariable=self.queue_delay)
+        delay_selector.grid(row=0, column=1, sticky="w", padx=5)
+        delay_selector.bind('<Return>', lambda e: self.apply_settings())
+        delay_selector.bind('<FocusOut>', lambda e: self.apply_settings())
+
         # Preview section
         preview_frame = ttk.LabelFrame(main_frame, text="Preview", padding="10")
-        preview_frame.grid(row=3, column=0, sticky="ew", pady=(0, 10))
+        preview_frame.grid(row=4, column=0, sticky="ew", pady=(0, 10))
 
         self.preview_text = tk.Text(preview_frame, wrap=tk.WORD, width=40, height=3)
         self.preview_text.insert('1.0', "This is a preview of how your text will look.")
@@ -117,7 +129,7 @@ class SettingsTab:
         # Save button
         ttk.Button(main_frame, text="Save Settings",
                   command=self.save_settings,
-                  style='Action.TButton').grid(row=4, column=0, pady=10)
+                  style='Action.TButton').grid(row=5, column=0, pady=10)
 
         # Configure grid weights
         main_frame.columnconfigure(0, weight=1)
@@ -177,6 +189,10 @@ class SettingsTab:
         self.config.button_ready_color = self.button_ready_color.get()
         self.config.button_success_color = self.button_success_color.get()
         self.config.disabled_color = self.disabled_color.get()
+        try:
+            self.config.queue_delay = int(self.queue_delay.get())
+        except ValueError:
+            self.config.queue_delay = 2
 
         # Update preview
         self.preview_text.configure(

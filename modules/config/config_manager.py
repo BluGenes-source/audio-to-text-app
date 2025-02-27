@@ -30,6 +30,8 @@ class ConfigManager:
         self.button_success_color = "#4caf50"
         self.disabled_color = "#e0e0e0"
         
+        self.queue_delay = 2  # Default 2 second delay between queue items
+        
         self.load_config()
 
     def load_config(self):
@@ -56,6 +58,7 @@ class ConfigManager:
                 self.button_ready_color = config.get('button_ready_color', '#2962ff')
                 self.button_success_color = config.get('button_success_color', '#4caf50')
                 self.disabled_color = config.get('disabled_color', '#e0e0e0')
+                self.queue_delay = config.get('queue_delay', 2)
             except:
                 self._set_defaults()
         else:
@@ -83,7 +86,8 @@ class ConfigManager:
             'button_inactive_color': self.button_inactive_color,
             'button_ready_color': self.button_ready_color,
             'button_success_color': self.button_success_color,
-            'disabled_color': self.disabled_color
+            'disabled_color': self.disabled_color,
+            'queue_delay': self.queue_delay
         }
         try:
             with open(self.config_file, 'w') as f:
