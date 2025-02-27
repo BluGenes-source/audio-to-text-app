@@ -17,6 +17,7 @@ class TextToSpeechTab:
         self.preview_audio_path = None
         self.audio_playing = False
         self.cancel_flag = False
+        self.auto_insert_enabled = False  # Add this line
         self.setup_tab()
 
     def setup_tab(self):
@@ -73,6 +74,12 @@ class TextToSpeechTab:
         ttk.Label(format_frame, text="Pause Marker:").grid(row=0, column=4, padx=(5, 2))
         marker_entry = ttk.Entry(format_frame, textvariable=self.pause_marker, width=3)
         marker_entry.grid(row=0, column=5, padx=2)
+
+        # Add auto-insert toggle button
+        self.auto_insert_button = ttk.Button(format_frame, text="Auto-Insert: OFF",
+                                          command=self.toggle_auto_insert,
+                                          style='Action.Inactive.TButton')
+        self.auto_insert_button.grid(row=0, column=6, padx=5)
         
         # Second row - action buttons
         insert_short_btn = ttk.Button(format_frame, text="Insert Short Pause",
@@ -112,6 +119,8 @@ class TextToSpeechTab:
         )
         self.tts_text_area.drop_target_register(DND_FILES)
         self.tts_text_area.dnd_bind('<<Drop>>', self.handle_text_drop)
+        # Add click binding for auto-insert
+        self.tts_text_area.bind('<Button-1>', self.handle_text_click)
         
         # Voice options
         self.setup_voice_options()
@@ -498,3 +507,34 @@ class TextToSpeechTab:
         self.tts_start_button.configure(style='Action.Ready.TButton')
         # Switch to this tab (notebook is parent's parent)
         self.parent.master.select(self.parent)
+
+    def toggle_auto_insert(self):
+        """Toggle auto-insert mode for periods and pauses"""
+        self.auto_insert_enabled = not self.auto_insert_enabled
+        if self.auto_insert_enabled:
+            self.auto_insert_button.configure(
+                text="Auto-Insert: ON",
+                style='Action.Ready.TButton'
+            )
+            self.update_status("Auto-insert mode enabled")
+        else:
+            self.auto_insert_button.configure(
+                text="Auto-Insert: OFF",
+                style='Action.Inactive.TButton'
+            )
+            self.update_status("Auto-insert mode disabled")
+
+    def handle_text_click(self, event):
+        """Handle click in text area for auto-insert"""
+        if self.auto_insert_enabled:
+            try:
+                # Get click position
+                click_pos = self.tts_text_area.index(f"@{event.x},{event.y}")
+                # Insert period and short pause
+                short_pause = f"<break time=\"{int(self.short_pause_length.get())/1000}s\"/>"
+                self.tts_text_area.insert(click_pos, f". {short_pause} ")
+                # Move cursor after inserted text
+                self.tts_text_area.mark_set(tk.INSERT, f"{click_pos}+{len(short_pause)+3}c")
+                return "break"  # Prevent default click behavior
+            except Exception as e:
+                self.update_status(f"Error in auto-insert: {str(e)}")

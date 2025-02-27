@@ -53,3 +53,4 @@ ehthumbs.db
 
 # FFmpeg tools directory
 tools/
+audio_converter.log
