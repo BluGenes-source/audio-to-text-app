@@ -166,7 +166,9 @@ class SpeechToTextTab:
         )
         self.text_area.drop_target_register(DND_FILES)
         self.text_area.dnd_bind('<<Drop>>', self.handle_drop)
-        self.text_area.bind('<Control-Button-2>', self.handle_font_size_change)
+        self.text_area.bind('<Control-MouseWheel>', self.handle_font_size_change)  # Windows
+        self.text_area.bind('<Control-Button-4>', self.handle_font_size_change)    # Linux up
+        self.text_area.bind('<Control-Button-5>', self.handle_font_size_change)    # Linux down
         
         # Bind text change event to update button states
         self.text_area.bind('<<Modified>>', self.check_text_content)
@@ -673,10 +675,18 @@ class SpeechToTextTab:
         self.text_area.edit_modified(False)
 
     def handle_font_size_change(self, event):
-        """Handle font size changes with Control + middle mouse button"""
+        """Handle font size changes with Control + mouse wheel"""
         try:
-            # Get the direction of scroll (up or down)
-            if event.delta > 0 or (hasattr(event, 'num') and event.num == 4):
+            # Determine direction based on event type
+            if hasattr(event, 'delta'):  # Windows
+                increase = event.delta > 0
+            elif hasattr(event, 'num'):  # Linux
+                increase = event.num == 4  # Button-4 is scroll up
+            else:
+                return
+
+            # Adjust font size
+            if increase:
                 self.current_font_size = min(self.current_font_size + 1, 24)
             else:
                 self.current_font_size = max(self.current_font_size - 1, 8)
