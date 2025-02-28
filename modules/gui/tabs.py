@@ -4,6 +4,7 @@ from tkinterdnd2 import DND_FILES
 import os
 import logging
 import threading
+from datetime import datetime
 from .styles import ThemeColors
 
 class SpeechToTextTab:
@@ -23,6 +24,7 @@ class SpeechToTextTab:
         self.failed_files = []  # Store failed conversion files
         self.errors_log_path = os.path.join(config.app_dir, "conversion_errors.log")
         self.current_font_size = 10  # Add default font size tracking
+        self.error_log_window = None  # Track error log window
         self.setup_tab()
 
     def setup_tab(self):
@@ -87,8 +89,8 @@ class SpeechToTextTab:
         self.start_button.grid(row=0, column=3, padx=10)
 
         # Update status on hover
-        self.start_button.bind('<Enter>', lambda e: self._update_status("Convert the currently selected file"))
-        self.start_button.bind('<Leave>', lambda e: self._update_status(""))
+        self.start_button.bind('<Enter>', lambda e: self.terminal_callback("Convert the currently selected file"))
+        self.start_button.bind('<Leave>', lambda e: self.terminal_callback(""))
 
         self.cancel_button = ttk.Button(conversion_frame, text="Cancel", 
                                       command=self.cancel_conversion,
@@ -154,6 +156,11 @@ class SpeechToTextTab:
         debug_load_btn = ttk.Button(button_frame, text="[Debug] Load Text",
                                   command=self.debug_load_text)
         debug_load_btn.grid(row=0, column=3, padx=5)
+
+        # Add view error log button next to clear text button in button_frame
+        self.view_errors_btn = ttk.Button(button_frame, text="View Error Log",
+                                      command=self.show_error_log)
+        self.view_errors_btn.grid(row=0, column=4, padx=5)
 
         # Add drag-drop instruction label
         drop_label = ttk.Label(text_frame, text="Drop audio file here or use the input options above",
@@ -248,10 +255,6 @@ class SpeechToTextTab:
         self.queue_frame.rowconfigure(1, weight=1)
         right_frame.columnconfigure(0, weight=1)
         right_frame.rowconfigure(0, weight=1)
-
-        # Bind custom event for progress updates
-        self.root.bind('<<ConversionProgress>>', 
-                      lambda e: self.terminal_callback(self.root.tk.call('set', '::progress_msg')))
 
     def show_progress(self):
         """Show and start the progress bar"""
@@ -452,8 +455,8 @@ class SpeechToTextTab:
         """Thread for audio to text conversion"""
         try:
             def progress_callback(msg):
-                # Using a Queue to safely communicate between threads
-                self.root.event_generate('<<ConversionProgress>>', data=msg)
+                # Schedule the callback in the main thread
+                self.root.after(0, lambda: self.terminal_callback(msg))
             
             text = self.audio_processor.convert_audio_to_text(file_path, progress_callback)
             
@@ -804,3 +807,123 @@ class SpeechToTextTab:
             self.terminal_callback(f"Font size: {self.current_font_size}")
         except Exception as e:
             self.terminal_callback(f"Error adjusting font size: {str(e)}")
+
+    def show_error_log(self):
+        """Show error log in a popup window"""
+        # If window already exists, bring it to front
+        if self.error_log_window and self.error_log_window.winfo_exists():
+            self.error_log_window.lift()
+            self.error_log_window.focus_force()
+            return
+
+        # Create new window
+        self.error_log_window = tk.Toplevel(self.root)
+        self.error_log_window.title("Conversion Error Log")
+        self.error_log_window.geometry("600x400")
+        self.error_log_window.minsize(400, 300)
+
+        # Apply theme colors
+        is_dark = self.config.theme == "dark"
+        theme = ThemeColors(is_dark)
+
+        # Create text area for log content
+        log_text = scrolledtext.ScrolledText(
+            self.error_log_window,
+            wrap=tk.WORD,
+            font=('Helvetica', 10)
+        )
+        log_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        log_text.configure(
+            background=theme.input_bg,
+            foreground=theme.input_fg,
+            insertbackground=theme.input_fg,
+            selectbackground=theme.selection_bg,
+            selectforeground=theme.selection_fg
+        )
+
+        # Load and display log content
+        try:
+            if os.path.exists(self.errors_log_path):
+                with open(self.errors_log_path, 'r', encoding='utf-8') as f:
+                    content = f.read().strip()
+                    if content:
+                        log_text.insert('1.0', content)
+                    else:
+                        log_text.insert('1.0', 'No errors logged yet.')
+            else:
+                log_text.insert('1.0', 'No error log file exists yet.')
+        except Exception as e:
+            log_text.insert('1.0', f'Error reading log file: {str(e)}')
+
+        # Make text read-only
+        log_text.configure(state='disabled')
+
+        # Add control buttons
+        button_frame = ttk.Frame(self.error_log_window)
+        button_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
+
+        # Refresh button
+        refresh_btn = ttk.Button(
+            button_frame,
+            text="Refresh",
+            command=lambda: self.refresh_error_log(log_text)
+        )
+        refresh_btn.pack(side=tk.LEFT, padx=5)
+
+        # Clear log button
+        clear_btn = ttk.Button(
+            button_frame,
+            text="Clear Log",
+            command=lambda: self.clear_error_log(log_text)
+        )
+        clear_btn.pack(side=tk.LEFT, padx=5)
+
+        # Close button
+        close_btn = ttk.Button(
+            button_frame,
+            text="Close",
+            command=self.error_log_window.destroy
+        )
+        close_btn.pack(side=tk.RIGHT, padx=5)
+
+    def refresh_error_log(self, log_text):
+        """Refresh the content of the error log window"""
+        try:
+            log_text.configure(state='normal')
+            log_text.delete('1.0', tk.END)
+            
+            if os.path.exists(self.errors_log_path):
+                with open(self.errors_log_path, 'r', encoding='utf-8') as f:
+                    content = f.read().strip()
+                    if content:
+                        log_text.insert('1.0', content)
+                    else:
+                        log_text.insert('1.0', 'No errors logged yet.')
+            else:
+                log_text.insert('1.0', 'No error log file exists yet.')
+            
+            log_text.configure(state='disabled')
+        except Exception as e:
+            log_text.configure(state='normal')
+            log_text.delete('1.0', tk.END)
+            log_text.insert('1.0', f'Error refreshing log: {str(e)}')
+            log_text.configure(state='disabled')
+
+    def clear_error_log(self, log_text):
+        """Clear the error log file"""
+        if messagebox.askyesno("Confirm Clear", "Are you sure you want to clear the error log?"):
+            try:
+                # Clear file content
+                with open(self.errors_log_path, 'w', encoding='utf-8') as f:
+                    f.write('')
+                
+                # Update display
+                log_text.configure(state='normal')
+                log_text.delete('1.0', tk.END)
+                log_text.insert('1.0', 'No errors logged yet.')
+                log_text.configure(state='disabled')
+                
+                self.terminal_callback("Error log cleared")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to clear error log: {str(e)}")
+                self.terminal_callback(f"Failed to clear error log: {str(e)}")
