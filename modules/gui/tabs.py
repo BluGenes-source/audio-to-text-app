@@ -20,6 +20,8 @@ class SpeechToTextTab:
         self.current_filename_var = tk.StringVar(value="-Empty-")  # Add filename variable
         self.conversion_in_progress = False
         self.audio_queue = []  # Store queued audio files
+        self.failed_files = []  # Store failed conversion files
+        self.errors_log_path = os.path.join(config.app_dir, "conversion_errors.log")
         self.current_font_size = 10  # Add default font size tracking
         self.setup_tab()
 
@@ -77,11 +79,16 @@ class SpeechToTextTab:
         ttk.Button(conversion_frame, text="Clear File", 
                   command=self.clear_selected_file).grid(row=0, column=2, padx=5)
 
-        # Start conversion button
-        self.start_button = ttk.Button(conversion_frame, text="Start Conversion", 
+        # Start conversion button - rename and disable initially
+        self.start_button = ttk.Button(conversion_frame, text="Convert Single File", 
                                      command=self.start_conversion,
-                                     style='Action.Inactive.TButton')
+                                     style='Action.Inactive.TButton',
+                                     state=tk.DISABLED)
         self.start_button.grid(row=0, column=3, padx=10)
+
+        # Update status on hover
+        self.start_button.bind('<Enter>', lambda e: self._update_status("Convert the currently selected file"))
+        self.start_button.bind('<Leave>', lambda e: self._update_status(""))
 
         self.cancel_button = ttk.Button(conversion_frame, text="Cancel", 
                                       command=self.cancel_conversion,
@@ -323,7 +330,7 @@ class SpeechToTextTab:
     def handle_drop(self, event):
         """Handle dropped audio files"""
         if self.conversion_in_progress:
-            messagebox.showwarning("Warning", "Conversion in progress. Please wait.")
+            self.terminal_callback("Conversion in progress. Please wait.")
             return
 
         file_path = event.data
@@ -333,9 +340,9 @@ class SpeechToTextTab:
                 self.current_audio_file = file_path
                 self.current_filename_var.set(os.path.basename(file_path))
                 self.terminal_callback(f"Audio file ready: {os.path.basename(file_path)}")
-                self.start_button.configure(style='Action.Ready.TButton')  # Change to ready style
+                self.start_button.configure(state=tk.NORMAL, style='Action.Ready.TButton')
             else:
-                messagebox.showerror("Error", "Please drop an audio file (WAV, MP3, or FLAC)")
+                self.terminal_callback("Error: Please drop an audio file (WAV, MP3, or FLAC)")
 
     def select_input_folder(self):
         """Select input folder for audio files"""
@@ -366,19 +373,34 @@ class SpeechToTextTab:
         )
         
         if files:
+            added_count = 0
             for file_path in files:
                 if file_path not in self.audio_queue:
                     self.audio_queue.append(file_path)
                     self.queue_listbox.insert(tk.END, os.path.basename(file_path))
-            self.update_queue_button_state()
-            self.terminal_callback(f"Added {len(files)} file(s) to queue")
+                    added_count += 1
+            
+            if added_count > 0:
+                self.update_queue_button_state()
+                self.terminal_callback(f"Added {added_count} file(s) to queue")
+                # Clear single file selection if files were added to queue
+                if self.current_audio_file:
+                    self.clear_selected_file()
 
     def update_queue_button_state(self):
         """Update the process queue button state based on queue contents"""
         if self.audio_queue and not self.conversion_in_progress:
-            self.process_queue_button.configure(state=tk.NORMAL, style='Action.Ready.TButton')
+            self.process_queue_button.configure(
+                state=tk.NORMAL,
+                style='Action.Ready.TButton',
+                text=f"Process Queue ({len(self.audio_queue)} files)"
+            )
         else:
-            self.process_queue_button.configure(state=tk.DISABLED, style='Action.Inactive.TButton')
+            self.process_queue_button.configure(
+                state=tk.DISABLED,
+                style='Action.Inactive.TButton',
+                text="Process Queue"
+            )
 
     def start_conversion(self, file_path=None, queue_mode=False):
         """Start audio to text conversion"""
@@ -455,24 +477,29 @@ class SpeechToTextTab:
                     f.write(text)
                 self.terminal_callback(f"Saved transcription to: {os.path.basename(transcription_file)}")
             except Exception as e:
-                self.terminal_callback(f"Error saving transcription: {str(e)}")
+                error_msg = f"Error saving transcription: {str(e)}"
+                if self.audio_queue and self.current_audio_file == self.audio_queue[0]:
+                    self.failed_files.append((self.current_audio_file, error_msg))
+                    self._log_conversion_error(self.current_audio_file, error_msg)
+                else:
+                    messagebox.showerror("Error", error_msg)
             
             # Update text area
             self.text_area.insert(tk.END, f"\n\n[{os.path.basename(self.current_audio_file)}]\n")
             self.text_area.insert(tk.END, text)
-            self.terminal_callback("Conversion completed successfully")
-            self.save_text_button.configure(state=tk.NORMAL)
-            self.send_to_tts_button.configure(state=tk.NORMAL)
-            self.play_button.configure(state=tk.NORMAL)
             
-            # Update queue progress if in queue mode
+            # Update UI based on mode
             if self.audio_queue and self.current_audio_file == self.audio_queue[0]:
                 self.queue_progress_bar['value'] += 1
                 self.audio_queue.pop(0)
                 self.queue_listbox.delete(0)
                 self.root.after(100, self.process_next_in_queue)
             else:
+                self.terminal_callback("Single file conversion completed successfully")
                 self._reset_buttons()
+                self.save_text_button.configure(state=tk.NORMAL)
+                self.send_to_tts_button.configure(state=tk.NORMAL)
+                self.play_button.configure(state=tk.NORMAL)
         
         self.hide_progress()
         self.start_button.configure(style='Action.Ready.TButton')  # Reset to ready style
@@ -482,12 +509,33 @@ class SpeechToTextTab:
 
     def _conversion_error(self, error_msg):
         """Handle conversion error"""
-        messagebox.showerror("Error", f"Conversion failed: {error_msg}")
-        self.terminal_callback("Conversion failed")
-        self._reset_buttons()
-        self.hide_progress()
-        self.enable_controls()
-        self.conversion_in_progress = False
+        if self.audio_queue and self.current_audio_file == self.audio_queue[0]:
+            # In queue mode, log error and continue
+            self.failed_files.append((self.current_audio_file, error_msg))
+            self._log_conversion_error(self.current_audio_file, error_msg)
+            self.terminal_callback(f"Failed to convert: {os.path.basename(self.current_audio_file)}")
+            self.queue_progress_bar['value'] += 1
+            self.audio_queue.pop(0)
+            self.queue_listbox.delete(0)
+            self.conversion_in_progress = False
+            self.root.after(self.config.queue_delay * 1000, self.process_next_in_queue)
+        else:
+            # In single file mode, show error
+            messagebox.showerror("Error", f"Conversion failed: {error_msg}")
+            self.terminal_callback("Conversion failed")
+            self._reset_buttons()
+            self.hide_progress()
+            self.enable_controls()
+            self.conversion_in_progress = False
+
+    def _log_conversion_error(self, file_path, error_msg):
+        """Log conversion error to file"""
+        try:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            with open(self.errors_log_path, 'a', encoding='utf-8') as f:
+                f.write(f"[{timestamp}] {os.path.basename(file_path)}: {error_msg}\n")
+        except Exception as e:
+            self.terminal_callback(f"Failed to log error: {str(e)}")
 
     def cancel_conversion(self):
         """Cancel ongoing conversion"""
@@ -522,7 +570,7 @@ class SpeechToTextTab:
 
         self.current_audio_file = None
         self.current_filename_var.set("-Empty-")
-        self.start_button.configure(style='Action.Inactive.TButton')
+        self.start_button.configure(state=tk.DISABLED, style='Action.Inactive.TButton')
         self.play_button.configure(state=tk.DISABLED)
         self.stop_button.configure(state=tk.DISABLED)
         self.terminal_callback("Audio file cleared")
@@ -676,6 +724,11 @@ class SpeechToTextTab:
         self.current_audio_file = next_file
         self.current_filename_var.set(os.path.basename(next_file))
         
+        # Update status with progress
+        total = self.queue_progress_bar['maximum']
+        current = self.queue_progress_bar['value']
+        self.terminal_callback(f"\nProcessing {current + 1}/{total}: {os.path.basename(next_file)}")
+        
         # Start conversion after delay
         self.root.after(self.config.queue_delay * 1000, lambda: self.start_conversion(queue_mode=True))
 
@@ -683,11 +736,23 @@ class SpeechToTextTab:
         """Clean up after queue processing is complete"""
         if hasattr(self, 'queue_progress_frame'):
             self.queue_progress_frame.destroy()
+        
         self.conversion_in_progress = False
         self.cancel_flag = False
         self.current_filename_var.set("-Empty-")
         self.current_audio_file = None
-        self.terminal_callback("Queue processing complete")
+        
+        # Report any failures
+        if self.failed_files:
+            failed_count = len(self.failed_files)
+            self.terminal_callback(f"\nQueue processing completed with {failed_count} failures:")
+            for file_path, error in self.failed_files:
+                self.terminal_callback(f"- {os.path.basename(file_path)}")
+            self.terminal_callback(f"\nDetailed error log saved to: {os.path.basename(self.errors_log_path)}")
+            self.failed_files = []  # Reset for next queue
+        else:
+            self.terminal_callback("Queue processing completed successfully")
+        
         self.update_queue_button_state()
 
     def cancel_queue(self):
