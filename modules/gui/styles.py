@@ -2,265 +2,160 @@ from tkinter import ttk
 
 class ThemeColors:
     def __init__(self, is_dark=False, config=None):
+        # Colors for dark theme
         if is_dark:
-            # Dark theme colors
             self.bg = "#2d2d2d"
-            self.fg = "#ffffff"
-            self.bg_secondary = "#3d3d3d"
-            self.bg_tertiary = "#4d4d4d"
-            self.border = "#555555"
-            self.selection_bg = "#666666"
-            self.selection_fg = "#ffffff"
-            self.button_fg = "#ffffff"
-            self.tab_active = "#4d4d4d"
-            self.tab_inactive = "#3d3d3d"
-            self.input_bg = "#3d3d3d"
+            self.fg = "#e0e0e0"
+            self.input_bg = "#3c3c3c"
             self.input_fg = "#ffffff"
-            # Button state colors
-            self.button_inactive = config.button_inactive_color if config else "#666666"
-            self.button_ready = config.button_ready_color if config else "#2962ff"
-            self.button_success = config.button_success_color if config else "#4caf50"
-            self.disabled_bg = config.disabled_color if config else "#444444"
-            self.disabled_fg = "#888888"
-        else:
-            # Light theme colors
-            self.bg = "#f5f5f5"
-            self.fg = "#000000"
-            self.bg_secondary = "#ffffff"
-            self.bg_tertiary = "#e0e0e0"
-            self.border = "#cccccc"
-            self.selection_bg = "#0078d7"
+            self.selection_bg = "#505050"
             self.selection_fg = "#ffffff"
-            self.button_fg = "#000000"
-            self.tab_active = "#ffffff"
-            self.tab_inactive = "#f0f0f0"
+            self.button_bg = "#505050"
+            self.button_fg = "#e0e0e0"
+            self.accent = config.accent_color if config else "#2962ff"
+            # Button text color - always black for better readability on colored buttons
+            self.button_text = "#000000"
+        # Colors for light theme
+        else:
+            self.bg = "#f5f5f5"
+            self.fg = "#333333"
             self.input_bg = "#ffffff"
             self.input_fg = "#000000"
-            # Button state colors
-            self.button_inactive = config.button_inactive_color if config else "#cccccc"
-            self.button_ready = config.button_ready_color if config else "#2962ff"
-            self.button_success = config.button_success_color if config else "#4caf50"
-            self.disabled_bg = config.disabled_color if config else "#e0e0e0"
-            self.disabled_fg = "#a0a0a0"
+            self.selection_bg = "#4a90e2"
+            self.selection_fg = "#ffffff"
+            self.button_bg = "#e0e0e0"
+            self.button_fg = "#333333"
+            self.accent = config.accent_color if config else "#2962ff"
+            # Button text color - always black for better readability on colored buttons
+            self.button_text = "#000000"
 
 def setup_styles(config=None):
     """Configure custom ttk styles for the application"""
-    style = ttk.Style()
-    
-    # Get theme colors based on current theme setting
-    is_dark = config and config.theme == "dark"
-    theme = ThemeColors(is_dark, config)
-    
-    # Use custom colors if provided in config
-    accent_color = config.accent_color if config else "#2962ff"
-    text_color = config.text_color if config else theme.fg
-    
-    # Reset to default theme first to clear any previous styles
-    style.theme_use('default')
-    
-    # Configure general styles
-    style.configure(".",
-                   background=theme.bg,
-                   foreground=text_color,
-                   font=(config.font_family if config else 'Helvetica', 
-                        config.font_size if config else 10))
-    
-    # Frame styles
-    style.configure("TFrame", background=theme.bg)
-    style.configure("TLabelframe", background=theme.bg)
-    style.configure("TLabelframe.Label", 
-                   background=theme.bg,
-                   foreground=text_color,
-                   font=(config.font_family if config else 'Helvetica', 
-                        config.font_size if config else 10, 'bold'))
-    
-    # Label styles
-    style.configure("TLabel",
-                   background=theme.bg,
-                   foreground=text_color)
-    
-    # Entry styles
-    style.configure("TEntry",
-                   fieldbackground=theme.input_bg,
-                   foreground=theme.input_fg,
-                   selectbackground=theme.selection_bg,
-                   selectforeground=theme.selection_fg,
-                   insertcolor=theme.input_fg)
-    
-    style.map("TEntry",
-             fieldbackground=[("readonly", theme.input_bg)],
-             foreground=[("readonly", theme.input_fg)])
-    
-    # Button styles
-    style.configure("TButton",
-                   background=theme.bg_secondary,
-                   foreground=theme.button_fg,
-                   padding=5)
-    
-    style.map("TButton",
-             background=[("active", theme.bg_tertiary),
-                        ("pressed", theme.bg_tertiary)],
-             foreground=[("active", theme.button_fg),
-                        ("pressed", theme.button_fg)])
-    
-    # Custom title style
-    style.configure("Title.TLabel", 
-                   font=(config.font_family if config else 'Helvetica', 24, 'bold'),
-                   foreground=accent_color,
-                   background=theme.bg)
-    
-    # Custom subtitle style
-    style.configure("Subtitle.TLabel",
-                   font=(config.font_family if config else 'Helvetica', 12),
-                   foreground=accent_color,
-                   background=theme.bg)
-    
-    # Custom button styles
-    style.configure("Action.TButton",
-                   font=(config.font_family if config else 'Helvetica',
-                        config.font_size if config else 10, 'bold'),
-                   background=accent_color,
-                   foreground=theme.button_fg,
-                   padding=5)
-    
-    style.map("Action.TButton",
-             background=[("active", accent_color),
-                        ("pressed", accent_color)],
-             foreground=[("active", theme.button_fg),
-                        ("pressed", theme.button_fg)])
+    try:
+        style = ttk.Style()
+        
+        # Get theme colors based on current theme setting
+        is_dark = config and config.theme == "dark"
+        theme = ThemeColors(is_dark, config)
+        
+        # Use custom colors if provided in config
+        accent_color = config.accent_color if config else "#2962ff"
+        text_color = config.text_color if config else theme.fg
+        
+        # Use a safer approach to set theme
+        try:
+            style.theme_use('default')
+        except Exception as e:
+            import logging
+            logging.warning(f"Could not set theme: {e}")
+        
+        # Configure general styles
+        style.configure(".",
+                       background=theme.bg,
+                       foreground=text_color,
+                       font=(config.font_family if config else 'Helvetica', 
+                            config.font_size if config else 10))
+        
+        # Frame styles
+        style.configure("TFrame", background=theme.bg)
+        style.configure("Status.TFrame", background=theme.accent)
+        
+        # Label styles
+        style.configure("TLabel", background=theme.bg, foreground=text_color)
+        style.configure("Title.TLabel", 
+                       font=(config.font_family if config else 'Helvetica', 
+                             18, 'bold'), 
+                       foreground=accent_color)
+        style.configure("Subtitle.TLabel", 
+                       font=(config.font_family if config else 'Helvetica', 
+                             11, 'italic'))
+        style.configure("Status.TLabel", 
+                       background=theme.accent, 
+                       foreground="#ffffff",
+                       padding=5)
+        
+        # Button styles - Normal
+        style.configure("TButton", 
+                       background=theme.button_bg,
+                       foreground=theme.button_fg,
+                       padding=5)
+        
+        # Button styles - Action/State-specific
+        button_inactive_color = config.button_inactive_color if config else "#cccccc"
+        button_ready_color = config.button_ready_color if config else "#2962ff"
+        button_success_color = config.button_success_color if config else "#4caf50"
+        
+        # Black text color for colored buttons to improve readability
+        style.configure("Action.Inactive.TButton",
+                       background=button_inactive_color,
+                       foreground=theme.button_text)  # Black text
+        style.map("Action.Inactive.TButton",
+                 background=[('active', button_inactive_color)],
+                 foreground=[('active', theme.button_text)])  # Black text when hovering
+        
+        style.configure("Action.Ready.TButton",
+                       background=button_ready_color,
+                       foreground=theme.button_text)  # Black text
+        style.map("Action.Ready.TButton",
+                 background=[('active', button_ready_color)],
+                 foreground=[('active', theme.button_text)])  # Black text when hovering
+        
+        style.configure("Action.Success.TButton",
+                       background=button_success_color,
+                       foreground=theme.button_text)  # Black text
+        style.map("Action.Success.TButton",
+                 background=[('active', button_success_color)],
+                 foreground=[('active', theme.button_text)])  # Black text when hovering
+                 
+        style.configure("Action.TButton",
+                       background=button_ready_color,
+                       foreground=theme.button_text)  # Black text
+        style.map("Action.TButton",
+                 background=[('active', button_ready_color)],
+                 foreground=[('active', theme.button_text)])  # Black text when hovering
+                 
+        style.configure("Cancel.TButton",
+                       background="#f44336",  # Red
+                       foreground=theme.button_text)  # Black text
+        style.map("Cancel.TButton",
+                 background=[('active', "#f44336")],
+                 foreground=[('active', theme.button_text)])  # Black text when hovering
+        
+        # Audio control buttons
+        style.configure("Audio.Play.TButton",
+                       background="#4caf50",  # Green
+                       foreground=theme.button_text)  # Black text
+        style.map("Audio.Play.TButton",
+                 background=[('active', "#4caf50")],
+                 foreground=[('active', theme.button_text)])  # Black text when hovering
+        
+        style.configure("Audio.Stop.TButton",
+                       background="#f44336",  # Red
+                       foreground=theme.button_text)  # Black text
+        style.map("Audio.Stop.TButton",
+                 background=[('active', "#f44336")],
+                 foreground=[('active', theme.button_text)])  # Black text when hovering
+        
+        # Grouping frames
+        style.configure("Group.TLabelframe",
+                       background=theme.bg)
+        style.configure("Group.TLabelframe.Label",
+                       background=theme.bg,
+                       foreground=accent_color,
+                       font=(config.font_family if config else 'Helvetica', 
+                             11, 'bold'))
+        
+        return style
+    except Exception as e:
+        import logging
+        logging.error(f"Error setting up styles: {e}")
+        # Return a basic style to prevent crashes
+        return ttk.Style()
 
-    # Action button states
-    style.configure("Action.Inactive.TButton",
-                   font=(config.font_family if config else 'Helvetica',
-                        config.font_size if config else 10, 'bold'),
-                   background=theme.button_inactive,
-                   foreground=theme.button_fg,
-                   padding=5)
-    
-    style.map("Action.Inactive.TButton",
-             background=[("active", theme.button_inactive),
-                        ("pressed", theme.button_inactive)],
-             foreground=[("active", theme.button_fg),
-                        ("pressed", theme.button_fg)])
-
-    style.configure("Action.Ready.TButton",
-                   font=(config.font_family if config else 'Helvetica',
-                        config.font_size if config else 10, 'bold'),
-                   background=theme.button_ready,
-                   foreground=theme.button_fg,
-                   padding=5)
-    
-    style.map("Action.Ready.TButton",
-             background=[("active", theme.button_ready),
-                        ("pressed", theme.button_ready)],
-             foreground=[("active", theme.button_fg),
-                        ("pressed", theme.button_fg)])
-    
-    style.configure("Cancel.TButton", padding=5)
-    
-    # Custom frame styles
-    style.configure("Group.TLabelframe",
-                   padding=10,
-                   relief="solid",
-                   background=theme.bg)
-    
-    # Status bar style
-    style.configure("Status.TFrame",
-                   background=accent_color)
-    style.configure("Status.TLabel",
-                   background=accent_color,
-                   foreground="white",
-                   font=(config.font_family if config else 'Helvetica',
-                        config.font_size if config else 10),
-                   padding=5)
-    
-    # Notebook (tabs) style
-    style.configure("TNotebook",
-                   background=theme.bg,
-                   borderwidth=0,
-                   tabmargins=[2, 5, 2, 0])
-    
-    style.configure("TNotebook.Tab",
-                   background=theme.tab_inactive,
-                   foreground=text_color,
-                   padding=[10, 2],
-                   font=(config.font_family if config else 'Helvetica',
-                        config.font_size if config else 10))
-    
-    style.map("TNotebook.Tab",
-             background=[("selected", theme.tab_active),
-                        ("active", theme.bg_tertiary)],
-             foreground=[("selected", text_color),
-                        ("active", text_color)])
-    
-    # Combobox styles
-    style.configure("TCombobox",
-                   fieldbackground=theme.input_bg,
-                   background=theme.input_bg,
-                   foreground=theme.input_fg,
-                   selectbackground=theme.selection_bg,
-                   selectforeground=theme.selection_fg,
-                   arrowcolor=text_color)
-    
-    style.map("TCombobox",
-             fieldbackground=[("readonly", theme.input_bg)],
-             selectbackground=[("readonly", theme.selection_bg)],
-             selectforeground=[("readonly", theme.selection_fg)],
-             background=[("readonly", theme.input_bg)],
-             foreground=[("readonly", theme.input_fg)])
-    
-    # Spinbox styles
-    style.configure("TSpinbox",
-                   fieldbackground=theme.input_bg,
-                   background=theme.input_bg,
-                   foreground=theme.input_fg,
-                   selectbackground=theme.selection_bg,
-                   selectforeground=theme.selection_fg,
-                   arrowcolor=text_color)
-    
-    style.map("TSpinbox",
-             fieldbackground=[("readonly", theme.input_bg)],
-             background=[("readonly", theme.input_bg)],
-             foreground=[("readonly", theme.input_fg)])
-    
-    # Text widget colors
-    style.configure("Custom.Text",
-                   background=theme.input_bg,
-                   foreground=theme.input_fg,
-                   selectbackground=theme.selection_bg,
-                   selectforeground=theme.selection_fg,
-                   insertbackground=theme.input_fg)
-
-    # Audio control button styles
-    style.configure("Audio.Play.TButton",
-                   background="#4caf50",
-                   foreground=theme.button_fg)
-    
-    style.map("Audio.Play.TButton",
-             background=[("active", "#388e3c"),
-                        ("pressed", "#388e3c"),
-                        ("disabled", theme.disabled_bg)],
-             foreground=[("active", theme.button_fg),
-                        ("pressed", theme.button_fg),
-                        ("disabled", theme.disabled_fg)])
-    
-    style.configure("Audio.Stop.TButton",
-                   background="#f44336",
-                   foreground=theme.button_fg)
-    
-    style.map("Audio.Stop.TButton",
-             background=[("active", "#d32f2f"),
-                        ("pressed", "#d32f2f"),
-                        ("disabled", theme.disabled_bg)],
-             foreground=[("active", theme.button_fg),
-                        ("pressed", theme.button_fg),
-                        ("disabled", theme.disabled_fg)])
-
-    return style
 
 class AppDimensions:
-    """Class to handle default window dimensions"""
-    DEFAULT_WIDTH = 1400  # Increased from 1200 to accommodate all buttons
-    DEFAULT_HEIGHT = 800
-    min_width = 1200  # Increased minimum width to ensure buttons don't get cut off
-    min_height = 600
+    def __init__(self):
+        self.default_width = 900
+        self.default_height = 650
+        self.min_width = 750
+        self.min_height = 500
