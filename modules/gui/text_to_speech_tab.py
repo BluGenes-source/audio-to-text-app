@@ -430,7 +430,7 @@ class TextToSpeechTab:
             return
         
         file_path = filedialog.asksaveasfilename(
-            initialdir=self.config.dialogs_folder,
+            initialdir=self.config.audio_output_folder,  # Changed to use audio_output_folder
             title="Save Audio As",
             defaultextension=".wav",
             filetypes=[("Wave Files", "*.wav")]

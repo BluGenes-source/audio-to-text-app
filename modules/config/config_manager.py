@@ -5,9 +5,13 @@ class ConfigManager:
     def __init__(self, app_dir):
         self.config_file = os.path.join(app_dir, "config.json")
         self.app_dir = app_dir
-        self.default_output = os.path.join(app_dir, "output")
+        
+        # Set up all folder paths
+        self.audio_input_folder = os.path.join(app_dir, "Audio-Input")
+        self.audio_output_folder = os.path.join(app_dir, "Audio-Output")
         self.transcribes_folder = os.path.join(app_dir, "Transcribes")
         self.dialogs_folder = os.path.join(app_dir, "Dialogs")
+        self.default_output = os.path.join(app_dir, "output")
         
         # Window settings
         self.window_width = None
@@ -15,9 +19,9 @@ class ConfigManager:
         self.window_x = None
         self.window_y = None
         
-        # Folder settings
-        self.input_folder = ""
-        self.output_folder = self.default_output
+        # Folder settings - use the new default folders
+        self.input_folder = self.audio_input_folder
+        self.output_folder = self.audio_output_folder
         
         # Visual settings
         self.theme = "light"
@@ -41,8 +45,8 @@ class ConfigManager:
                 with open(self.config_file, 'r') as f:
                     config = json.load(f)
                 # Window settings
-                self.input_folder = config.get('input_folder', "")
-                self.output_folder = config.get('output_folder', self.default_output)
+                self.input_folder = config.get('input_folder', self.audio_input_folder)
+                self.output_folder = config.get('output_folder', self.audio_output_folder)
                 self.window_width = config.get('window_width', None)
                 self.window_height = config.get('window_height', None)
                 self.window_x = config.get('window_x', None)
@@ -64,7 +68,9 @@ class ConfigManager:
         else:
             self._set_defaults()
         
-        # Ensure folders exist
+        # Ensure all required folders exist
+        os.makedirs(self.audio_input_folder, exist_ok=True)
+        os.makedirs(self.audio_output_folder, exist_ok=True)
         os.makedirs(self.transcribes_folder, exist_ok=True)
         os.makedirs(self.dialogs_folder, exist_ok=True)
         os.makedirs(self.output_folder, exist_ok=True)
@@ -97,8 +103,8 @@ class ConfigManager:
 
     def _set_defaults(self):
         """Set default configuration values"""
-        self.input_folder = ""
-        self.output_folder = self.default_output
+        self.input_folder = self.audio_input_folder
+        self.output_folder = self.audio_output_folder
         self.theme = "light"
         self.font_family = "Helvetica"
         self.font_size = 10

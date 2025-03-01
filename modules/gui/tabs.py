@@ -30,6 +30,10 @@ class SpeechToTextTab:
         self._queue_lock = threading.Lock()
         self._pending_updates = []
         
+        # Add variables to store and display folder paths
+        self.input_folder_var = tk.StringVar(value="Not set")
+        self.output_folder_var = tk.StringVar(value="Not set")
+        
         # Create the queue_manager first and store a direct reference to its audio_queue
         self.queue_manager = QueueManager(parent, config, terminal_callback, audio_processor, root)
         
@@ -44,6 +48,9 @@ class SpeechToTextTab:
         self.setup_tab()
         # Start update checker after UI is fully setup
         self.root.after(100, self._check_updates)
+        
+        # Update folder path displays
+        self.update_folder_displays()
 
     def setup_tab(self):
         # Split main frame into left and right sections
@@ -78,12 +85,26 @@ class SpeechToTextTab:
                   command=self.select_input_folder).grid(row=1, column=0)
         ttk.Button(input_group, text="Load File from Input", 
                   command=self.load_from_input_folder).grid(row=2, column=0, pady=5)
+                  
+        # Add display for current input folder
+        input_path_frame = ttk.Frame(input_group)
+        input_path_frame.grid(row=3, column=0, pady=(5, 0))
+        ttk.Label(input_path_frame, text="Current:").grid(row=0, column=0, sticky="w", padx=(0, 5))
+        ttk.Label(input_path_frame, textvariable=self.input_folder_var, 
+                 style="Small.TLabel").grid(row=0, column=1, sticky="w")
 
         # Output group
         ttk.Label(output_group, text="Output Options:", 
                  style="Subtitle.TLabel").grid(row=0, column=0, pady=(0, 5))
         ttk.Button(output_group, text="Select Output Folder", 
                   command=self.select_output_folder).grid(row=1, column=0)
+                  
+        # Add display for current output folder
+        output_path_frame = ttk.Frame(output_group)
+        output_path_frame.grid(row=2, column=0, pady=(5, 0))
+        ttk.Label(output_path_frame, text="Current:").grid(row=0, column=0, sticky="w", padx=(0, 5))
+        ttk.Label(output_path_frame, textvariable=self.output_folder_var,
+                 style="Small.TLabel").grid(row=0, column=1, sticky="w")
 
         # Conversion controls and file info frame
         conversion_frame = ttk.Frame(main_frame)
@@ -359,6 +380,9 @@ class SpeechToTextTab:
         if folder:
             self.config.input_folder = folder
             self.terminal_callback(f"Input folder set: {os.path.basename(folder)}")
+            # Save config and update display
+            self.config.save_config()
+            self.update_folder_displays()
 
     def select_output_folder(self):
         """Select output folder for transcribed files"""
@@ -367,6 +391,9 @@ class SpeechToTextTab:
         if folder:
             self.config.output_folder = folder
             self.terminal_callback(f"Output folder set: {os.path.basename(folder)}")
+            # Save config and update display
+            self.config.save_config()
+            self.update_folder_displays()
 
     def load_from_input_folder(self):
         """Load audio file(s) from input folder"""
@@ -1076,6 +1103,13 @@ class SpeechToTextTab:
                 self.audio_processor.check_audio_length(file_path)
                 print(f"DEBUG: Audio length validation passed")
                 
+                # Remove file from queue first if it already exists
+                if file_path in self.audio_queue:
+                    index = self.audio_queue.index(file_path)
+                    self.audio_queue.pop(index)
+                    self.queue_manager.queue_listbox.delete(index)
+                    print(f"DEBUG: Removed existing file from queue before adding again")
+                
                 # Add file to queue directly using the queue manager
                 print(f"DEBUG: Adding file to queue using queue manager")
                 
@@ -1131,3 +1165,38 @@ class SpeechToTextTab:
     def _queue_gui_update(self, callback):
         """Queue a GUI update to be processed in the main thread"""
         self._pending_updates.append(callback)
+
+    def update_folder_displays(self):
+        """Update the folder path displays with current config values"""
+        # Update input folder display
+        if self.config.input_folder and os.path.exists(self.config.input_folder):
+            self.input_folder_var.set(self.truncate_path(self.config.input_folder, 30))
+        else:
+            self.input_folder_var.set("Not set")
+            
+        # Update output folder display
+        if self.config.output_folder and os.path.exists(self.config.output_folder):
+            self.output_folder_var.set(self.truncate_path(self.config.output_folder, 30))
+        else:
+            self.output_folder_var.set("Not set")
+    
+    def truncate_path(self, path, max_length=30):
+        """Truncate a path for display if it's too long"""
+        if len(path) <= max_length:
+            return path
+        
+        # Get drive or network share
+        drive_part = os.path.splitdrive(path)[0]
+        
+        # Get filename part
+        path_parts = os.path.normpath(path).split(os.sep)
+        filename_part = path_parts[-1]
+        
+        # Calculate remaining length for middle part
+        remaining = max_length - len(drive_part) - len(filename_part) - 5  # 5 for "...\\" and separator
+        
+        if remaining <= 0:
+            # Path is too long even for truncation, just show beginning and end
+            return f"{path[:max_length//2-2]}...{path[-max_length//2+2:]}"
+        
+        return f"{drive_part}{os.sep}...{os.sep}{filename_part}"
