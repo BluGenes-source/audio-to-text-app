@@ -212,39 +212,30 @@ class TextToSpeechTab:
             messagebox.showerror("Error", "Failed to initialize voice list")
 
     def handle_text_drop(self, event):
-        """Handle dropped text files"""
-        file_path = event.data.strip('{}')
-        if file_path.lower().endswith('.txt'):
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    self.tts_text_area.delete(1.0, tk.END)
-                    self.tts_text_area.insert(tk.END, f.read())
-                self.update_status(f"Loaded text file: {os.path.basename(file_path)}")
-                self.tts_start_button.configure(style='Action.Ready.TButton')
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to load text file: {str(e)}")
-        else:
-            messagebox.showerror("Error", "Please drop a text (.txt) file")
+        try:
+            # Remove curly braces and decode
+            filepath = event.data.strip('{}')
+            if os.path.exists(filepath):
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    self.text_area.delete('1.0', tk.END)
+                    self.text_area.insert('1.0', f.read())
+        except Exception as e:
+            logging.error(f"Error handling text drop: {e}")
+            self.update_status(f"Error loading dropped file: {e}")
 
     def load_text_file(self):
-        """Load text from a file"""
-        initial_dir = self.config.transcribes_folder
-        os.makedirs(initial_dir, exist_ok=True)
-        
-        file_path = filedialog.askopenfilename(
-            initialdir=initial_dir,
-            title="Select Text File",
-            filetypes=[("Text Files", "*.txt")]
-        )
-        if file_path:
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    self.tts_text_area.delete(1.0, tk.END)
-                    self.tts_text_area.insert(tk.END, f.read())
-                self.update_status(f"Loaded text file: {os.path.basename(file_path)}")
-                self.tts_start_button.configure(style='Action.Ready.TButton')
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to load text file: {str(e)}")
+        try:
+            filepath = filedialog.askopenfilename(
+                filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
+            )
+            if filepath:
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    self.text_area.delete('1.0', tk.END)
+                    self.text_area.insert('1.0', f.read())
+                    self.update_status("Text file loaded")
+        except Exception as e:
+            logging.error(f"Error loading text file: {e}")
+            messagebox.showerror("Error", f"Failed to load text file: {e}")
 
     def insert_pause_marker(self, is_short=True):
         """Insert pause marker at current cursor position"""
@@ -323,31 +314,36 @@ class TextToSpeechTab:
                 messagebox.showerror("Error", f"Failed to save text: {str(e)}")
 
     def start_text_to_speech(self):
-        text = self.tts_text_area.get(1.0, tk.END).strip()
-        if not text:
-            messagebox.showwarning("Warning", "Please enter or load some text first")
-            return
-        
-        self.tts_start_button.state(['disabled'])
-        self.tts_cancel_button.state(['!disabled'])
-        self.update_status("Converting text to speech...")
-        
-        # Generate output filename
-        base_name = "speech"
-        counter = 1
-        while True:
-            filename = f"{base_name}{'_' + str(counter) if counter > 1 else ''}.wav"
-            output_path = os.path.join(self.config.dialogs_folder, filename)
-            if not os.path.exists(output_path):
-                break
-            counter += 1
-        
-        self.cancel_flag = False
-        self.current_process = threading.Thread(
-            target=self._tts_thread,
-            args=(text, output_path)
-        )
-        self.current_process.start()
+        try:
+            text = self.text_area.get('1.0', tk.END).strip()
+            if not text:
+                messagebox.showwarning("Warning", "Please enter some text to convert")
+                return
+
+            voice_name = self.voice_combobox.get() if hasattr(self, 'voice_combobox') else None
+            
+            # Create output folder if it doesn't exist
+            os.makedirs("Audio-Output", exist_ok=True)
+            
+            # Generate output filename
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_path = os.path.join("Audio-Output", f"tts_output_{timestamp}.wav")
+
+            self.update_status("Converting text to speech...")
+            self.preview_audio_path = output_path
+            
+            # Disable buttons during conversion
+            self.convert_button.configure(state=tk.DISABLED)
+            self.cancel_button.configure(state=tk.NORMAL)
+            
+            # Start conversion in a thread
+            self.cancel_flag = False
+            threading.Thread(target=self._tts_thread,
+                           args=(text, output_path)).start()
+
+        except Exception as e:
+            logging.error(f"Error starting text-to-speech conversion: {e}", exc_info=True)
+            self._tts_error(str(e))
 
     def _tts_thread(self, text, output_path):
         try:
@@ -390,22 +386,22 @@ class TextToSpeechTab:
         self._reset_tts_buttons()
 
     def play_audio(self):
-        if not self.preview_audio_path or not os.path.exists(self.preview_audio_path):
-            messagebox.showerror("Error", "No audio file to play")
-            return
-        
         try:
+            if not self.preview_audio_path or not os.path.exists(self.preview_audio_path):
+                messagebox.showwarning("Warning", "No audio file available to play")
+                return
+
             if not self.audio_playing:
                 self.audio_processor.play_audio(self.preview_audio_path)
                 self.audio_playing = True
-                self.play_button.configure(text="⏸ Stop")
-                self.stop_button.configure(state=tk.NORMAL)
-                self.update_status("Playing audio...")
+                self.play_button.configure(text="Stop")
                 self.root.after(100, self._check_audio_playing)
             else:
                 self.stop_audio()
+                
         except Exception as e:
-            messagebox.showerror("Error", str(e))
+            logging.error(f"Error during audio playback: {e}", exc_info=True)
+            messagebox.showerror("Playback Error", f"Failed to play audio: {e}")
             self._reset_play_button()
 
     def _check_audio_playing(self):
@@ -415,8 +411,12 @@ class TextToSpeechTab:
             self.root.after(100, self._check_audio_playing)
 
     def stop_audio(self):
-        if self.audio_playing:
-            self.audio_processor.stop_audio()
+        try:
+            if self.audio_playing:
+                self.audio_processor.stop_audio()
+                self._reset_play_button()
+        except Exception as e:
+            logging.error(f"Error stopping audio: {e}", exc_info=True)
             self._reset_play_button()
 
     def _reset_play_button(self):
@@ -425,47 +425,40 @@ class TextToSpeechTab:
         self.stop_button.configure(state=tk.DISABLED)
 
     def save_generated_audio(self):
-        if not self.preview_audio_path or not os.path.exists(self.preview_audio_path):
-            messagebox.showerror("Error", "No audio file to save")
-            return
-        
-        file_path = filedialog.asksaveasfilename(
-            initialdir=self.config.audio_output_folder,  # Changed to use audio_output_folder
-            title="Save Audio As",
-            defaultextension=".wav",
-            filetypes=[("Wave Files", "*.wav")]
-        )
-        
-        if file_path:
-            try:
+        try:
+            if not self.preview_audio_path or not os.path.exists(self.preview_audio_path):
+                messagebox.showwarning("Warning", "No audio file available to save")
+                return
+
+            output_path = filedialog.asksaveasfilename(
+                defaultextension=".wav",
+                filetypes=[("Wave files", "*.wav")]
+            )
+            
+            if output_path:
                 import shutil
-                shutil.copy2(self.preview_audio_path, file_path)
-                self.update_status(f"Saved audio to: {os.path.basename(file_path)}")
+                shutil.copy2(self.preview_audio_path, output_path)
+                self.update_status("Audio file saved successfully")
                 
-                try:
-                    os.remove(self.preview_audio_path)
-                    self.preview_audio_path = file_path
-                except:
-                    pass
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to save audio: {str(e)}")
+        except Exception as e:
+            logging.error(f"Error saving audio file: {e}", exc_info=True)
+            messagebox.showerror("Save Error", f"Failed to save audio file: {e}")
 
     def clear_text(self):
-        """Clear the text area after confirmation"""
-        if self.tts_text_area.get(1.0, tk.END).strip():
-            if messagebox.askyesno("Confirm Clear", "Are you sure you want to clear all text?"):
-                self.tts_text_area.delete(1.0, tk.END)
+        try:
+            if messagebox.askyesno("Confirm", "Clear all text?"):
+                self.text_area.delete('1.0', tk.END)
                 self.update_status("Text cleared")
-                self.tts_start_button.configure(style='Action.Inactive.TButton')
+        except Exception as e:
+            logging.error(f"Error clearing text: {e}")
 
     def set_text(self, text):
-        """Set the text in the text area and switch to this tab"""
-        self.tts_text_area.delete(1.0, tk.END)
-        self.tts_text_area.insert(tk.END, text)
-        self.update_status("Text received from Speech-to-Text tab")
-        self.tts_start_button.configure(style='Action.Ready.TButton')
-        # Switch to this tab (notebook is parent's parent)
-        self.parent.master.select(self.parent)
+        try:
+            self.text_area.delete('1.0', tk.END)
+            self.text_area.insert('1.0', text)
+        except Exception as e:
+            logging.error(f"Error setting text: {e}")
+            messagebox.showerror("Error", f"Failed to set text: {e}")
 
     def toggle_auto_insert(self):
         """Toggle auto-insert mode for periods and pauses"""
@@ -509,30 +502,26 @@ class TextToSpeechTab:
                 self.update_status(f"Error in auto-insert: {str(e)}")
 
     def handle_font_size_change(self, event):
-        """Handle font size changes with Control + mouse wheel"""
         try:
-            # Determine direction based on event type
-            if hasattr(event, 'delta'):  # Windows
-                increase = event.delta > 0
-            elif hasattr(event, 'num'):  # Linux
-                increase = event.num == 4  # Button-4 is scroll up
-            else:
-                return
-
-            # Adjust font size
-            if increase:
-                self.current_font_size = min(self.current_font_size + 1, 24)
-            else:
-                self.current_font_size = max(self.current_font_size - 1, 8)
-            
-            # Update font size
-            current_font = self.tts_text_area['font']
+            # Get current font properties
+            current_font = self.text_area.cget("font")
             if isinstance(current_font, str):
-                font_family = 'Helvetica'
+                font_family = current_font
+                new_size = 10
             else:
                 font_family = current_font[0]
-            
-            self.tts_text_area.configure(font=(font_family, self.current_font_size))
-            self.update_status(f"Font size: {self.current_font_size}")
+                current_size = int(current_font[1])
+                new_size = current_size
+
+            # Adjust size based on event
+            if event.delta > 0:
+                new_size = min(new_size + 2, 24)  # Maximum size
+            else:
+                new_size = max(new_size - 2, 8)   # Minimum size
+
+            # Apply new font size
+            self.text_area.configure(font=(font_family, new_size))
+            self.current_font_size = new_size
+
         except Exception as e:
-            self.update_status(f"Error adjusting font size: {str(e)}")
+            logging.error(f"Error changing font size: {e}")

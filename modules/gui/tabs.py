@@ -17,261 +17,147 @@ class SpeechToTextTab:
         self.audio_processor = audio_processor
         self.terminal_callback = terminal_callback
         self.root = root
-        self.cancel_flag = False
-        self.current_process = None
-        self.tts_tab = None  # Will be set by main app
-        self.current_audio_file = None  # Store the selected audio file path
-        self.current_filename_var = tk.StringVar(value="-Empty-")  # Add filename variable
-        self.conversion_in_progress = False
-        self.failed_files = []  # Store failed conversion files
-        self.errors_log_path = os.path.join(config.app_dir, "conversion_errors.log")
-        self.current_font_size = 10  # Add default font size tracking
-        self.error_log_window = None  # Track error log window
-        self._queue_lock = threading.Lock()
-        self._pending_updates = []
-        
-        # Add variables to store and display folder paths
-        self.input_folder_var = tk.StringVar(value="Not set")
-        self.output_folder_var = tk.StringVar(value="Not set")
-        
-        # Create the queue_manager first and store a direct reference to its audio_queue
         self.queue_manager = QueueManager(parent, config, terminal_callback, audio_processor, root)
-        
-        # CRITICAL FIX: Use queue_manager's audio_queue directly instead of our own
-        # This ensures both classes operate on exactly the same list object
-        self.audio_queue = self.queue_manager.audio_queue
-        
-        # Initialize other helpers
-        self.conversion_handler = ConversionHandler(config, audio_processor, terminal_callback, root)
-        self.audio_player = AudioPlayer(audio_processor, terminal_callback, root)
-        
+        self.current_audio_file = None
+        self.current_process = None
+        self.cancel_flag = False
+        self.conversion_in_progress = False
+        self._pending_updates = []
         self.setup_tab()
-        # Start update checker after UI is fully setup
-        self.root.after(100, self._check_updates)
         
-        # Update folder path displays
-        self.update_folder_displays()
-
     def setup_tab(self):
-        # Split main frame into left and right sections
-        left_frame = ttk.Frame(self.parent, padding="10")
-        left_frame.grid(row=0, column=0, sticky="nsew")
+        # Create main container
+        main_container = ttk.Frame(self.parent)
+        main_container.grid(row=0, column=0, sticky="nsew")
         
-        right_frame = ttk.Frame(self.parent, padding="10")
-        right_frame.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
+        # Split into left and right sections
+        left_frame = ttk.Frame(main_container)
+        left_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
         
-        # Configure column weights
-        self.parent.columnconfigure(0, weight=3)  # Left side gets more space
-        self.parent.columnconfigure(1, weight=1)  # Right side gets less space
-
-        # Main container with padding
-        main_frame = left_frame
-
-        # Folder settings frame
-        folder_frame = ttk.LabelFrame(main_frame, text="Folder Settings", 
-                                    style="Group.TLabelframe", padding="10")
-        folder_frame.grid(row=0, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
-
-        # Create two groups within folder frame
-        input_group = ttk.Frame(folder_frame)
-        input_group.grid(row=0, column=0, padx=5)
-        output_group = ttk.Frame(folder_frame)
-        output_group.grid(row=0, column=1, padx=5)
-
-        # Input group
-        ttk.Label(input_group, text="Input Options:", 
-                 style="Subtitle.TLabel").grid(row=0, column=0, pady=(0, 5))
-        ttk.Button(input_group, text="Select Input Folder", 
-                  command=self.select_input_folder).grid(row=1, column=0)
-        ttk.Button(input_group, text="Load File from Input", 
-                  command=self.load_from_input_folder).grid(row=2, column=0, pady=5)
-                  
-        # Add display for current input folder
-        input_path_frame = ttk.Frame(input_group)
-        input_path_frame.grid(row=3, column=0, pady=(5, 0))
-        ttk.Label(input_path_frame, text="Current:").grid(row=0, column=0, sticky="w", padx=(0, 5))
-        ttk.Label(input_path_frame, textvariable=self.input_folder_var, 
-                 style="Small.TLabel").grid(row=0, column=1, sticky="w")
-
-        # Output group
-        ttk.Label(output_group, text="Output Options:", 
-                 style="Subtitle.TLabel").grid(row=0, column=0, pady=(0, 5))
-        ttk.Button(output_group, text="Select Output Folder", 
-                  command=self.select_output_folder).grid(row=1, column=0)
-                  
-        # Add display for current output folder
-        output_path_frame = ttk.Frame(output_group)
-        output_path_frame.grid(row=2, column=0, pady=(5, 0))
-        ttk.Label(output_path_frame, text="Current:").grid(row=0, column=0, sticky="w", padx=(0, 5))
-        ttk.Label(output_path_frame, textvariable=self.output_folder_var,
-                 style="Small.TLabel").grid(row=0, column=1, sticky="w")
-
-        # Conversion controls and file info frame
-        conversion_frame = ttk.Frame(main_frame)
-        conversion_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
-        conversion_frame.columnconfigure(0, weight=1)
-        conversion_frame.columnconfigure(4, weight=1)
-
-        # File info label
-        ttk.Label(conversion_frame, text="Current File:").grid(row=0, column=0, sticky='e', padx=(0, 5))
-        ttk.Label(conversion_frame, textvariable=self.current_filename_var).grid(row=0, column=1, sticky='w')
+        right_frame = ttk.Frame(main_container)
+        right_frame.grid(row=0, column=1, sticky="nsew")
         
-        # Clear file button
-        ttk.Button(conversion_frame, text="Clear File", 
-                  command=self.clear_selected_file).grid(row=0, column=2, padx=5)
-
-        # Start conversion button - rename and disable initially
-        self.start_button = ttk.Button(conversion_frame, text="Load File", 
-                                     command=self.load_single_file,
-                                     style='Action.Inactive.TButton',
-                                     state=tk.NORMAL)  # Changed to NORMAL since it's a load button
-        self.start_button.grid(row=0, column=3, padx=10)
+        # Configure weights
+        main_container.columnconfigure(0, weight=3)
+        main_container.columnconfigure(1, weight=2)
         
-        # Remove hover bindings since this is now just a load button
-
-        self.cancel_button = ttk.Button(conversion_frame, text="Cancel", 
-                                      command=self.cancel_conversion,
-                                      style='Cancel.TButton',
-                                      state=tk.DISABLED)
-        self.cancel_button.grid(row=0, column=4, padx=10)
-
-        # Progress bar frame
-        progress_frame = ttk.Frame(main_frame)
-        progress_frame.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
-        self.progress_bar = ttk.Progressbar(progress_frame, mode='indeterminate')
-        self.progress_bar.grid(row=0, column=0, sticky=(tk.W, tk.E))
-        progress_frame.grid_propagate(False)
-        progress_frame.configure(height=25)
-        progress_frame.grid_remove()
-        self.progress_frame = progress_frame
-
-        # Terminal output area - Moved up
-        terminal_frame = ttk.LabelFrame(main_frame, text="Process Output", 
-                                      style="Group.TLabelframe", padding="10")
-        terminal_frame.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
-
-        # Apply theme colors to text area
-        is_dark = self.config.theme == "dark"
-        theme = ThemeColors(is_dark)
-
-        self.terminal_area = scrolledtext.ScrolledText(terminal_frame, height=6, wrap=tk.WORD,
-                                                     font=('Helvetica', 10))
-        self.terminal_area.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
-        self.terminal_area.configure(
-            background=theme.input_bg,
-            foreground=theme.input_fg,
-            insertbackground=theme.input_fg,
-            selectbackground=theme.selection_bg,
-            selectforeground=theme.selection_fg,
-            state='disabled'
-        )
-
-        # Text display area with drop zone functionality - Moved down
-        text_frame = ttk.LabelFrame(main_frame, text="Transcribed Text", 
-                                  style="Group.TLabelframe", padding="10")
-        text_frame.grid(row=4, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=10)
-
-        # Add control buttons to text frame
-        button_frame = ttk.Frame(text_frame)
-        button_frame.grid(row=0, column=0, columnspan=2, sticky=(tk.E), pady=(0, 5))
-
-        clear_text_btn = ttk.Button(button_frame, text="Clear Text",
-                                  command=self.clear_text)
-        clear_text_btn.grid(row=0, column=0, padx=5)
-
-        self.save_text_button = ttk.Button(button_frame, text="Save Text", 
-                                         command=self.save_transcribed_text,
-                                         state=tk.DISABLED)
-        self.save_text_button.grid(row=0, column=1, padx=5)
-
-        self.send_to_tts_button = ttk.Button(button_frame, text="Send to TTS", 
-                                           command=self.send_to_tts,
-                                           state=tk.DISABLED)
-        self.send_to_tts_button.grid(row=0, column=2, padx=5)
-
-        # Debug load button
-        debug_load_btn = ttk.Button(button_frame, text="[Debug] Load Text",
-                                  command=self.debug_load_text)
-        debug_load_btn.grid(row=0, column=3, padx=5)
-
-        # Add view error log button next to clear text button in button_frame
-        self.view_errors_btn = ttk.Button(button_frame, text="View Error Log",
-                                      command=self.show_error_log)
-        self.view_errors_btn.grid(row=0, column=4, padx=5)
-
-        # Add drag-drop instruction label
-        drop_label = ttk.Label(text_frame, text="Drop audio file here or use the input options above",
-                             font=('Helvetica', 9, 'italic'))
-        drop_label.grid(row=1, column=0, pady=(0, 5), sticky='w')  # Changed to row 1
-
-        # Make text area 25% smaller by reducing height from 15 to 11
-        self.text_area = scrolledtext.ScrolledText(text_frame, height=12, wrap=tk.WORD,
-                                                 font=('Helvetica', self.current_font_size))
-        self.text_area.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
-        self.text_area.configure(
-            background=theme.input_bg,
-            foreground=theme.input_fg,
-            insertbackground=theme.input_fg,
-            selectbackground=theme.selection_bg,
-            selectforeground=theme.selection_fg
-        )
-        self.text_area.drop_target_register(DND_FILES)
-        self.text_area.dnd_bind('<<Drop>>', self.handle_drop)
-        self.text_area.bind('<Control-MouseWheel>', self.handle_font_size_change)  # Windows
-        self.text_area.bind('<Control-Button-4>', self.handle_font_size_change)    # Linux up
-        self.text_area.bind('<Control-Button-5>', self.handle_font_size_change)    # Linux down
+        # Setup left frame contents (file selection, terminal, etc.)
+        self._setup_left_frame(left_frame)
         
-        # Bind text change event to update button states
-        self.text_area.bind('<<Modified>>', self.check_text_content)
-
-        # Add play/stop audio controls
-        audio_control_frame = ttk.Frame(text_frame)
-        audio_control_frame.grid(row=3, column=0, sticky=(tk.E), pady=5)
-
-        self.play_button = ttk.Button(audio_control_frame, text="▶ Play Audio", 
-                                    command=self.play_audio,
-                                    style='Audio.Play.TButton',
-                                    state=tk.DISABLED)
-        self.play_button.grid(row=0, column=0, padx=5)
-
-        self.stop_button = ttk.Button(audio_control_frame, text="⏹ Stop", 
-                                    command=self.stop_audio,
-                                    style='Audio.Stop.TButton',
-                                    state=tk.DISABLED)
-        self.stop_button.grid(row=0, column=1, padx=5)
-
-        # Configure grid weights
+        # Setup right frame contents (queue)
+        self._setup_right_frame(right_frame)
+        
+        # Configure parent weights
         self.parent.columnconfigure(0, weight=1)
-        text_frame.columnconfigure(0, weight=1)
-        text_frame.rowconfigure(1, weight=1)
+        self.parent.rowconfigure(0, weight=1)
+
+    def _setup_left_frame(self, parent):
+        # File selection frame
+        file_frame = ttk.LabelFrame(parent, text="File Selection", padding="10")
+        file_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        
+        # Input folder section
+        input_folder_frame = ttk.Frame(file_frame)
+        input_folder_frame.grid(row=0, column=0, sticky="ew")
+        
+        ttk.Label(input_folder_frame, text="Input:").grid(row=0, column=0, padx=5)
+        self.input_folder_var = tk.StringVar(value=self.truncate_path(self.config.input_folder))
+        input_label = ttk.Label(input_folder_frame, textvariable=self.input_folder_var,
+                              style="Path.TLabel")
+        input_label.grid(row=0, column=1, sticky="w")
+        
+        ttk.Button(input_folder_frame, text="Select Folder",
+                  command=self.select_input_folder).grid(row=0, column=2, padx=5)
+        
+        # Output folder section
+        output_folder_frame = ttk.Frame(file_frame)
+        output_folder_frame.grid(row=1, column=0, sticky="ew", pady=5)
+        
+        ttk.Label(output_folder_frame, text="Output:").grid(row=0, column=0, padx=5)
+        self.output_folder_var = tk.StringVar(value=self.truncate_path(self.config.output_folder))
+        output_label = ttk.Label(output_folder_frame, textvariable=self.output_folder_var,
+                               style="Path.TLabel")
+        output_label.grid(row=0, column=1, sticky="w")
+        
+        ttk.Button(output_folder_frame, text="Select Folder",
+                  command=self.select_output_folder).grid(row=0, column=2, padx=5)
+        
+        # File buttons
+        button_frame = ttk.Frame(file_frame)
+        button_frame.grid(row=2, column=0, sticky="ew")
+        
+        ttk.Button(button_frame, text="Load File",
+                  command=self.load_single_file).grid(row=0, column=0, padx=2)
+        ttk.Button(button_frame, text="Load From Folder",
+                  command=self.load_from_input_folder).grid(row=0, column=1, padx=2)
+        
+        # Configure weights for folder frames
+        input_folder_frame.columnconfigure(1, weight=1)
+        output_folder_frame.columnconfigure(1, weight=1)
+        
+        # Terminal frame
+        terminal_frame = ttk.LabelFrame(parent, text="Status", padding="10")
+        terminal_frame.grid(row=1, column=0, sticky="nsew", pady=(0, 10))
+        
+        # Terminal area
+        self.terminal_area = scrolledtext.ScrolledText(terminal_frame, height=8, 
+                                                     wrap=tk.WORD, state='disabled')
+        self.terminal_area.grid(row=0, column=0, sticky="nsew")
+        
+        # Progress frame
+        progress_frame = ttk.Frame(parent)
+        progress_frame.grid(row=2, column=0, sticky="ew")
+        
+        # Current file label
+        self.current_filename_var = tk.StringVar(value="-Empty-")
+        ttk.Label(progress_frame, textvariable=self.current_filename_var,
+                 style="Subtitle.TLabel").grid(row=0, column=0, sticky="w")
+        
+        # Progress bar
+        self.progress_bar = ttk.Progressbar(progress_frame, mode='indeterminate')
+        self.progress_bar.grid(row=1, column=0, sticky="ew", pady=5)
+        
+        # Control buttons
+        button_frame = ttk.Frame(progress_frame)
+        button_frame.grid(row=2, column=0, sticky="ew")
+        
+        self.start_button = ttk.Button(button_frame, text="Start Conversion",
+                                     command=lambda: self.start_conversion(),
+                                     state=tk.DISABLED)
+        self.start_button.grid(row=0, column=0, padx=2)
+        
+        self.stop_button = ttk.Button(button_frame, text="Stop",
+                                    command=self.cancel_conversion,
+                                    state=tk.DISABLED)
+        self.stop_button.grid(row=0, column=1, padx=2)
+        
+        self.save_text_button = ttk.Button(button_frame, text="Save Text",
+                                        command=self.save_transcribed_text,
+                                        state=tk.DISABLED)
+        self.save_text_button.grid(row=0, column=2, padx=2)
+        
+        # Configure weights
+        parent.columnconfigure(0, weight=1)
+        parent.rowconfigure(1, weight=1)
         terminal_frame.columnconfigure(0, weight=1)
         terminal_frame.rowconfigure(0, weight=1)
         progress_frame.columnconfigure(0, weight=1)
-        button_frame.grid_columnconfigure(3, weight=1)
 
-        # Queue frame in right section
-        self.queue_frame = ttk.LabelFrame(right_frame, text="Audio Queue", 
-                                   style="Group.TLabelframe", padding="10")
+    def _setup_right_frame(self, parent):
+        # Queue frame
+        self.queue_frame = ttk.LabelFrame(parent, text="Audio Queue", padding="10")
         self.queue_frame.grid(row=0, column=0, sticky="nsew")
         
-        # Setup queue UI elements with the queue manager
-        self.queue_listbox, self.process_queue_button = self.queue_manager.setup_queue_ui(
+        # Setup queue with queue manager
+        self.queue_tree, self.process_queue_button = self.queue_manager.setup_queue_ui(
             self.queue_frame,
             self.process_next_in_queue,
             self.update_queue_button_state
         )
         
-        # Setup conversion handler with progress elements
-        self.conversion_handler.setup_handlers(self.progress_frame, self.progress_bar)
-        
-        # Setup audio player with control buttons
-        self.audio_player.setup_playback_controls(self.play_button, self.stop_button)
-        
-        # Configure weights for queue frame
-        self.queue_frame.columnconfigure(0, weight=1)
-        self.queue_frame.rowconfigure(1, weight=1)
-        right_frame.columnconfigure(0, weight=1)
-        right_frame.rowconfigure(0, weight=1)
+        # Configure weights
+        parent.columnconfigure(0, weight=1)
+        parent.rowconfigure(0, weight=1)
 
     def show_progress(self):
         """Show and start the progress bar"""
@@ -1078,79 +964,35 @@ class SpeechToTextTab:
 
     def load_single_file(self):
         """Load a single file and add it to the queue"""
-        print(f"DEBUG: Starting load_single_file - Thread ID: {threading.get_ident()}")
+        print(f"DEBUG: Starting load_single_file")
         logging.info("Starting load_single_file function")
         
         try:
-            # Use simple file dialog without threading
-            print("DEBUG: Opening file dialog...")
             file_path = filedialog.askopenfilename(
                 title="Select Audio File",
                 filetypes=[("Audio Files", "*.wav *.mp3 *.flac")]
             )
             
-            print(f"DEBUG: Dialog closed, file path: '{file_path}'")
-            logging.info(f"File dialog returned: {file_path}")
-            
             if not file_path:
-                print("DEBUG: No file selected, returning")
                 return
                 
-            # Do length check directly (no threading)
             try:
-                print(f"DEBUG: Checking file exists: {os.path.exists(file_path)}")
-                print(f"DEBUG: Starting audio length validation")
+                # Validate audio length
                 self.audio_processor.check_audio_length(file_path)
-                print(f"DEBUG: Audio length validation passed")
                 
-                # Remove file from queue first if it already exists
-                if file_path in self.audio_queue:
-                    index = self.audio_queue.index(file_path)
-                    self.audio_queue.pop(index)
-                    self.queue_manager.queue_listbox.delete(index)
-                    print(f"DEBUG: Removed existing file from queue before adding again")
-                
-                # Add file to queue directly using the queue manager
-                print(f"DEBUG: Adding file to queue using queue manager")
-                
-                # Add to internal list first (needed for button state update)
-                if file_path not in self.audio_queue:
-                    self.audio_queue.append(file_path)
-                    
-                # Then update the UI through queue manager
-                added = self.queue_manager.add_file_to_queue(file_path)
-                print(f"DEBUG: File added successfully: {added}")
-                
-                # Explicitly update button state after adding file
-                print(f"DEBUG: Explicitly enabling Process Queue button")
-                self.process_queue_button.configure(
-                    state=tk.NORMAL,
-                    style='Action.Ready.TButton',
-                    text=f"Process Queue ({len(self.audio_queue)} files)"
-                )
-                
-                # Force update the UI
-                self.root.update_idletasks()
-                print(f"DEBUG: Process Queue button state is now: {self.process_queue_button['state']}")
+                # Add to queue using queue manager
+                if self.queue_manager.add_file_to_queue(file_path):
+                    self.terminal_callback(f"Added {os.path.basename(file_path)} to queue")
                 
             except ValueError as e:
-                print(f"DEBUG: Value error: {e}")
                 self.terminal_callback(f"Error: {str(e)}")
             except Exception as e:
-                print(f"DEBUG: Unexpected error: {e}")
-                import traceback
-                print(traceback.format_exc())
+                logging.error(f"Error processing file: {e}")
                 self.terminal_callback(f"Error processing file: {str(e)}")
                 
         except Exception as e:
-            import traceback
-            print(f"DEBUG: Critical error in load_single_file: {e}")
-            print(traceback.format_exc())
-            logging.error(f"Error in load_single_file: {e}\n{traceback.format_exc()}")
+            logging.error(f"Error in load_single_file: {e}")
             self.terminal_callback(f"Error loading file: {str(e)}")
-        
-        print(f"DEBUG: Exiting load_single_file successfully")
-        logging.info("Exiting load_single_file function")
 
     def _check_updates(self):
         """Process any pending GUI updates from background threads"""
@@ -1200,3 +1042,27 @@ class SpeechToTextTab:
             return f"{path[:max_length//2-2]}...{path[-max_length//2+2:]}"
         
         return f"{drive_part}{os.sep}...{os.sep}{filename_part}"
+
+    def process_next_in_queue(self):
+        """Process next file in the queue"""
+        queue_items = self.queue_manager.get_queue_items()
+        if not queue_items or self.cancel_flag:
+            self.finish_queue_processing()
+            return
+        
+        next_file = queue_items[0]
+        self.current_audio_file = next_file
+        self.current_filename_var.set(os.path.basename(next_file))
+        
+        # Update status with progress
+        if hasattr(self, 'queue_progress_bar'):
+            total = len(queue_items)
+            current = total - len(queue_items) + 1
+            self.terminal_callback(f"\nProcessing {current}/{total}: {os.path.basename(next_file)}")
+        
+        # Start conversion after delay
+        self.conversion_in_progress = True
+        self.root.after(int(self.config.queue_delay * 1000), 
+                       lambda: self.start_conversion(next_file, queue_mode=True))
+
+    # ... rest of the class methods remain unchanged ...

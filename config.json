@@ -1,1 +1,12 @@
-{"input_folder": "J:/Dev/Python/TTS_Local/audio-to-text-app/Dialogs", "output_folder": "C:/Users/Herb/Videos/A_RC_5_User_Guide/Intro Quick Start/Transcibes", "window_width": 1200, "window_height": 971, "window_x": 402, "window_y": 29, "theme": "light", "font_family": "Arial Baltic", "font_size": 10, "accent_color": "#ff8000", "text_color": "#000000", "button_inactive_color": "#cccccc", "button_ready_color": "#008000", "button_success_color": "#4caf50", "disabled_color": "#e0e0e0", "queue_delay": 30}
+{
+    "window_width": 1200,
+    "window_height": 971,
+    "window_x": 402,
+    "window_y": 29,
+    "queue_delay": 30.0,
+    "theme": "light",
+    "font_family": "Helvetica",
+    "font_size": 10,
+    "input_folder": "J:/Dev/Python/TTS_Local/audio-to-text-app/Dialogs",
+    "output_folder": "C:/Users/Herb/Videos/A_RC_5_User_Guide/Intro Quick Start/Transcibes"
+}
