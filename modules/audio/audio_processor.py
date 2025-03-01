@@ -151,7 +151,7 @@ class AudioProcessor:
                     )
                 return True
             except subprocess.CalledProcessError as e:
-                raise ValueError(f"Error reading audio file: {e.stderr.decode()}")
+                raise ValueError(f"Error reading audio file: {e.stderr.decode() if e.stderr else str(e)}")
             except ValueError as e:
                 if "Audio file is too long" in str(e):
                     raise
