@@ -33,14 +33,47 @@ Audio-Output/
 Dialogs/
 output/
 
-# Binary files and executables
+# Binary and executable files
 *.exe
 *.dll
 *.so
 *.dylib
+*.pyd
+*.bin
+*.o
+*.obj
+*.lib
+*.a
+*.app
+
+# Audio files
 *.wav
 *.mp3
 *.flac
+*.m4a
+*.aac
+*.ogg
+*.wma
+*.aiff
+*.aifc
+*.au
+*.raw
+
+# Video files
+*.mp4
+*.avi
+*.mkv
+*.mov
+*.wmv
+
+# Other binary files
+*.zip
+*.rar
+*.7z
+*.tar.gz
+*.tar
+*.iso
+*.img
 
 # Exclude generated transcription files
 Transcribes/
@@ -49,3 +82,9 @@ Transcribes/
 # OS specific files
 .DS_Store
 Thumbs.db
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+desktop.ini
