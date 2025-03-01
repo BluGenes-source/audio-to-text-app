@@ -33,6 +33,15 @@ Audio-Output/
 Dialogs/
 output/
 
+# Binary files and executables
+*.exe
+*.dll
+*.so
+*.dylib
+*.wav
+*.mp3
+*.flac
+
 # Exclude generated transcription files
 Transcribes/
 *.txt
