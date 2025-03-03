@@ -33,6 +33,9 @@ Audio-Output/
 Dialogs/
 output/
 
+# Model folder to store AI models (typically large files)
+Models/
+
 # Binary and executable files
 *.exe
 *.dll
