@@ -5,6 +5,8 @@ import os
 import logging
 import threading
 import re
+import asyncio
+from datetime import datetime
 from .styles import ThemeColors
 
 class TextToSpeechTab:
@@ -217,8 +219,9 @@ class TextToSpeechTab:
             filepath = event.data.strip('{}')
             if os.path.exists(filepath):
                 with open(filepath, 'r', encoding='utf-8') as f:
-                    self.text_area.delete('1.0', tk.END)
-                    self.text_area.insert('1.0', f.read())
+                    # Fix: using tts_text_area instead of text_area
+                    self.tts_text_area.delete('1.0', tk.END)
+                    self.tts_text_area.insert('1.0', f.read())
         except Exception as e:
             logging.error(f"Error handling text drop: {e}")
             self.update_status(f"Error loading dropped file: {e}")
@@ -230,8 +233,9 @@ class TextToSpeechTab:
             )
             if filepath:
                 with open(filepath, 'r', encoding='utf-8') as f:
-                    self.text_area.delete('1.0', tk.END)
-                    self.text_area.insert('1.0', f.read())
+                    # Fix: using tts_text_area instead of text_area
+                    self.tts_text_area.delete('1.0', tk.END)
+                    self.tts_text_area.insert('1.0', f.read())
                     self.update_status("Text file loaded")
         except Exception as e:
             logging.error(f"Error loading text file: {e}")
@@ -315,12 +319,14 @@ class TextToSpeechTab:
 
     def start_text_to_speech(self):
         try:
-            text = self.text_area.get('1.0', tk.END).strip()
+            # Fix: using tts_text_area instead of text_area
+            text = self.tts_text_area.get('1.0', tk.END).strip()
             if not text:
                 messagebox.showwarning("Warning", "Please enter some text to convert")
                 return
 
-            voice_name = self.voice_combobox.get() if hasattr(self, 'voice_combobox') else None
+            # Fix: using voice_selector instead of voice_combobox
+            voice_name = self.voice_selector.get() if hasattr(self, 'voice_selector') else None
             
             # Create output folder if it doesn't exist
             os.makedirs("Audio-Output", exist_ok=True)
@@ -333,8 +339,9 @@ class TextToSpeechTab:
             self.preview_audio_path = output_path
             
             # Disable buttons during conversion
-            self.convert_button.configure(state=tk.DISABLED)
-            self.cancel_button.configure(state=tk.NORMAL)
+            # Fix: using tts_start_button and tts_cancel_button instead of convert_button and cancel_button
+            self.tts_start_button.configure(state=tk.DISABLED)
+            self.tts_cancel_button.configure(state=tk.NORMAL)
             
             # Start conversion in a thread
             self.cancel_flag = False
@@ -351,15 +358,26 @@ class TextToSpeechTab:
             voice_name = self.voice_selector.get() if engine_type == "local" else None
             lang = self.google_lang.get() if engine_type == "google" else None
             
-            success = self.audio_processor.text_to_speech(
-                text, output_path, engine_type, voice_name, lang,
-                progress_callback=self.update_status
-            )
+            # Fix: Using async method properly with asyncio.run
+            # Instead of calling text_to_speech directly, use proper async handling
+            def async_wrapper():
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    return loop.run_until_complete(self.audio_processor.text_to_speech_async(
+                        text, output_path, engine_type, voice_name, lang,
+                        progress_callback=self.update_status
+                    ))
+                finally:
+                    loop.close()
+            
+            success = async_wrapper()
             
             if success and not self.cancel_flag:
                 self.preview_audio_path = output_path
                 self.root.after(0, self._tts_complete)
         except Exception as e:
+            logging.error(f"Error in TTS thread: {e}", exc_info=True)
             self.root.after(0, lambda: self._tts_error(str(e)))
 
     def _tts_complete(self):
@@ -447,15 +465,17 @@ class TextToSpeechTab:
     def clear_text(self):
         try:
             if messagebox.askyesno("Confirm", "Clear all text?"):
-                self.text_area.delete('1.0', tk.END)
+                # Fix: using tts_text_area instead of text_area
+                self.tts_text_area.delete('1.0', tk.END)
                 self.update_status("Text cleared")
         except Exception as e:
             logging.error(f"Error clearing text: {e}")
 
     def set_text(self, text):
         try:
-            self.text_area.delete('1.0', tk.END)
-            self.text_area.insert('1.0', text)
+            # Fix: using tts_text_area instead of text_area
+            self.tts_text_area.delete('1.0', tk.END)
+            self.tts_text_area.insert('1.0', text)
         except Exception as e:
             logging.error(f"Error setting text: {e}")
             messagebox.showerror("Error", f"Failed to set text: {e}")
@@ -504,7 +524,8 @@ class TextToSpeechTab:
     def handle_font_size_change(self, event):
         try:
             # Get current font properties
-            current_font = self.text_area.cget("font")
+            # Fix: using tts_text_area instead of text_area
+            current_font = self.tts_text_area.cget("font")
             if isinstance(current_font, str):
                 font_family = current_font
                 new_size = 10
@@ -520,8 +541,10 @@ class TextToSpeechTab:
                 new_size = max(new_size - 2, 8)   # Minimum size
 
             # Apply new font size
-            self.text_area.configure(font=(font_family, new_size))
+            # Fix: using tts_text_area instead of text_area
+            self.tts_text_area.configure(font=(font_family, new_size))
             self.current_font_size = new_size
 
         except Exception as e:
             logging.error(f"Error changing font size: {e}")
+``` 
