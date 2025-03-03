@@ -547,4 +547,3 @@ class TextToSpeechTab:
 
         except Exception as e:
             logging.error(f"Error changing font size: {e}")
-``` 
