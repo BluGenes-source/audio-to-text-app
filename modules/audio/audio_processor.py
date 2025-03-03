@@ -14,8 +14,9 @@ import functools
 import concurrent.futures
 import traceback  # Added import for traceback
 from functools import lru_cache
-from typing import Optional, Callable
+from typing import Optional, Callable, Dict, Any, List
 from pathlib import Path
+from .huggingface_models import HuggingFaceModelManager  # Import the new HuggingFaceModelManager
 
 MAX_AUDIO_LENGTH_MINUTES = 60.0  # Maximum audio length in minutes
 MAX_AUDIO_LENGTH_SECONDS = MAX_AUDIO_LENGTH_MINUTES * 60  # Convert to seconds
@@ -133,6 +134,16 @@ class AudioProcessor:
             AudioSegment.ffprobe = self.ffmpeg_path
             os.environ['FFMPEG_BINARY'] = self.ffmpeg_path
 
+        # Initialize Hugging Face model manager
+        models_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "Models")
+        self.hf_manager = HuggingFaceModelManager(models_dir)
+        self._hf_initialized = False
+        
+        # TTS settings
+        self.current_tts_engine = "google"  # Options: "google", "local", "huggingface"
+        self.current_local_voice = None
+        self.current_hf_model = None
+
     def initialize_pygame(self):
         """Initialize pygame mixer for audio playback"""
         try:
@@ -233,20 +244,54 @@ class AudioProcessor:
 
     @_ensure_ffmpeg
     async def text_to_speech_async(self, text: str, output_path: str, 
-                                 engine_type: str = "google",
+                                 engine_type: str = None,
                                  voice_name: Optional[str] = None, 
                                  lang: str = "en",
                                  progress_callback: Optional[Callable] = None) -> bool:
         """Async version of text to speech conversion"""
         try:
-            # Run CPU-intensive conversion in thread pool
-            loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(
-                self._thread_pool,
-                functools.partial(self._text_to_speech_impl,
-                                text, output_path, engine_type,
-                                voice_name, lang, progress_callback)
-            )
+            # Use the specified engine or the current default
+            engine_type = engine_type or self.current_tts_engine
+            
+            # Check for Hugging Face engine type
+            if engine_type == "huggingface":
+                # Initialize Hugging Face if not already done
+                if not self._hf_initialized:
+                    if progress_callback:
+                        progress_callback("Initializing Hugging Face model manager...")
+                    await self.hf_manager.initialize()
+                    self._hf_initialized = True
+                
+                # Use Hugging Face for TTS
+                model_id = voice_name or self.current_hf_model
+                if not model_id:
+                    if progress_callback:
+                        progress_callback("No Hugging Face model selected. Please select a model.")
+                    return False
+                
+                # Load the model if needed
+                if self.hf_manager.current_model != model_id:
+                    success = await self.hf_manager.load_model(model_id, progress_callback)
+                    if not success:
+                        return False
+                    
+                    # For SpeechT5 models, also load the vocoder if needed
+                    if "speecht5" in model_id and not self.hf_manager.vocoder_model:
+                        await self.hf_manager.load_vocoder(None, progress_callback)
+                
+                # Convert text to speech using Hugging Face
+                return await self.hf_manager.text_to_speech(text, output_path, None, progress_callback)
+            
+            else:
+                # Use standard implementation for other engine types
+                # Run CPU-intensive conversion in thread pool
+                loop = asyncio.get_event_loop()
+                return await loop.run_in_executor(
+                    self._thread_pool,
+                    functools.partial(self._text_to_speech_impl,
+                                    text, output_path, engine_type,
+                                    voice_name, lang, progress_callback)
+                )
         except Exception as e:
             logging.error(f"Error in async TTS conversion: {e}")
             raise
@@ -261,7 +306,7 @@ class AudioProcessor:
                     progress_callback("Converting text to speech using Google TTS...")
                 tts = gTTS(text=text, lang=lang)
                 tts.save(output_path)
-            else:
+            elif engine_type == "local":
                 import pyttsx3
                 engine = pyttsx3.init()
                 if voice_name:
@@ -273,6 +318,8 @@ class AudioProcessor:
                     progress_callback("Converting text to speech using local TTS...")
                 engine.save_to_file(text, output_path)
                 engine.runAndWait()
+            else:
+                raise ValueError(f"Unknown engine type: {engine_type}")
             
             if progress_callback:
                 progress_callback("Speech generation complete")
@@ -282,6 +329,35 @@ class AudioProcessor:
             logging.error(f"Error in TTS implementation: {e}")
             raise
 
+    async def get_huggingface_voices(self) -> List[Dict[str, Any]]:
+        """Get available Hugging Face TTS models"""
+        if not self._hf_initialized:
+            await self.hf_manager.initialize()
+            self._hf_initialized = True
+        
+        return await self.hf_manager.get_available_voices()
+    
+    def get_huggingface_recommended_models(self) -> List[Dict[str, str]]:
+        """Get recommended Hugging Face models for download"""
+        return self.hf_manager.get_recommended_models()
+
+    def set_tts_engine(self, engine_type: str):
+        """Set the TTS engine type (google, local, huggingface)"""
+        if engine_type in ["google", "local", "huggingface"]:
+            self.current_tts_engine = engine_type
+            return True
+        return False
+    
+    def set_huggingface_model(self, model_id: str):
+        """Set the current Hugging Face model ID"""
+        self.current_hf_model = model_id
+        return True
+        
+    def set_local_voice(self, voice_name: str):
+        """Set the local TTS voice"""
+        self.current_local_voice = voice_name
+        return True
+
     def cleanup(self):
         """Cleanup resources"""
         self._thread_pool.shutdown(wait=True)
@@ -290,6 +366,10 @@ class AudioProcessor:
             shutil.rmtree(self._cache_dir)
         except Exception as e:
             logging.error(f"Error cleaning up cache: {e}")
+        
+        # Clean up Hugging Face resources
+        if hasattr(self, 'hf_manager'):
+            self.hf_manager.cleanup()
 
     def play_audio(self, audio_path):
         """Play audio file using pygame mixer"""
