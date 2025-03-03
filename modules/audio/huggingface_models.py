@@ -14,22 +14,16 @@ class HuggingFaceModelManager:
     
     # Default models to recommend for first-time setup
     DEFAULT_TTS_MODELS = [
-        "microsoft/speecht5_tts",
-        "facebook/mms-tts-eng",
-        "espnet/kan-bayashi_ljspeech_vits",
-        "suno/bark-small"
+        {"id": "microsoft/speecht5_tts", "name": "SpeechT5 TTS"},
+        {"id": "facebook/mms-tts-eng", "name": "MMS TTS English"},
+        {"id": "espnet/kan-bayashi_ljspeech_vits", "name": "LJSpeech VITS"}
     ]
     
     # Default vocoder model (used with some TTS models)
     DEFAULT_VOCODER = "microsoft/speecht5_hifigan"
     
     def __init__(self, models_dir: str):
-        """
-        Initialize the Hugging Face model manager
-        
-        Args:
-            models_dir: Path to directory where models will be stored
-        """
+        """Initialize the Hugging Face model manager"""
         self.models_dir = Path(models_dir)
         self.models_dir.mkdir(parents=True, exist_ok=True)
         self.available_models = {}
@@ -41,6 +35,9 @@ class HuggingFaceModelManager:
         self.vocoder_model = None
         self._initialized = False
         logging.info(f"HuggingFaceModelManager initialized with device: {self.device}")
+        
+        # Initialize recommended models list
+        self._recommended_models = self.DEFAULT_TTS_MODELS
     
     async def initialize(self):
         """Asynchronously initialize the model manager"""
@@ -365,13 +362,8 @@ class HuggingFaceModelManager:
         return voices
     
     def get_recommended_models(self) -> List[Dict[str, str]]:
-        """
-        Get a list of recommended models to download
-        
-        Returns:
-            List of dictionaries with model information
-        """
-        return [{"id": model_id, "name": model_id.split('/')[-1]} for model_id in self.DEFAULT_TTS_MODELS]
+        """Get a list of recommended models to download"""
+        return self._recommended_models
     
     def cleanup(self):
         """Clean up resources"""

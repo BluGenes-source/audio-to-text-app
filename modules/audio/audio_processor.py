@@ -139,10 +139,28 @@ class AudioProcessor:
         self.hf_manager = HuggingFaceModelManager(models_dir)
         self._hf_initialized = False
         
-        # TTS settings
-        self.current_tts_engine = "google"  # Options: "google", "local", "huggingface"
-        self.current_local_voice = None
-        self.current_hf_model = None
+        # Run initial async initialization
+        try:
+            import asyncio
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.create_task(self._init_hf_async())
+            else:
+                loop.run_until_complete(self._init_hf_async())
+        except Exception as e:
+            logging.error(f"Failed to initialize Hugging Face models: {e}")
+            self._hf_initialized = False
+            self.hf_manager = None
+
+    async def _init_hf_async(self):
+        """Initialize Hugging Face models asynchronously"""
+        try:
+            await self.hf_manager.initialize()
+            self._hf_initialized = True
+        except Exception as e:
+            logging.error(f"Failed to initialize Hugging Face models: {e}")
+            self._hf_initialized = False
+            self.hf_manager = None
 
     def initialize_pygame(self):
         """Initialize pygame mixer for audio playback"""
@@ -339,7 +357,13 @@ class AudioProcessor:
     
     def get_huggingface_recommended_models(self) -> List[Dict[str, str]]:
         """Get recommended Hugging Face models for download"""
-        return self.hf_manager.get_recommended_models()
+        try:
+            if not self.hf_manager or not self._hf_initialized:
+                return []
+            return self.hf_manager.get_recommended_models()
+        except Exception as e:
+            logging.error(f"Error getting recommended models: {e}")
+            return []
 
     def set_tts_engine(self, engine_type: str):
         """Set the TTS engine type (google, local, huggingface)"""

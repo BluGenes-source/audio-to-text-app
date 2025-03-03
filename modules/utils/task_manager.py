@@ -16,11 +16,11 @@ class TaskManager:
     async def start_task_sequence(self, tasks: List[Dict[str, Any]]) -> None:
         """Initialize a sequence of tasks to be completed"""
         for task in tasks:
-            self.progress.add_task(
+            await self.progress.add_task(
                 task["name"],
                 context=task.get("context", {})
             )
-            await self.progress.start_task(task["name"])
+            self._update_status(f"Added task: {task['name']}")
             
     def _update_status(self, message: str) -> None:
         """Update status via callback if set"""
@@ -30,118 +30,120 @@ class TaskManager:
     async def process_task(self, task_name: str) -> None:
         """Process a single task with progress tracking"""
         try:
-            self._update_status(f"Starting task: {task_name}")
-            await self.progress.start_task(task_name)
-            
-            # Get task context
-            context = self.progress.get_task_context(task_name)
-            if not context:
-                raise ValueError(f"No context found for task: {task_name}")
-            
-            # Process the task
-            await self._process_task_with_context(task_name, context)
-            
-            # Mark task as complete
-            await self.progress.complete_task(task_name)
-            self._update_status(f"Completed task: {task_name}")
-            
+            context = await self.progress.get_task_context(task_name)
+            if context:
+                await self.progress.update_task_progress(
+                    task_name,
+                    0.0,
+                    "Starting task...",
+                    TaskStatus.IN_PROGRESS
+                )
+                await self._process_task_with_context(task_name, context)
+            else:
+                await self.progress.update_task_progress(
+                    task_name,
+                    0.0,
+                    "No context found for task",
+                    TaskStatus.FAILED
+                )
+                
         except Exception as e:
-            await self.progress.fail_task(task_name, str(e))
-            self._update_status(f"Failed task {task_name}: {str(e)}")
+            await self.progress.update_task_progress(
+                task_name,
+                0.0,
+                f"Task failed: {str(e)}",
+                TaskStatus.FAILED
+            )
             raise
     
     async def _process_task_with_context(self, task_name: str, context: Dict[str, Any]) -> None:
         """Process a task based on its context"""
-        # Update progress at key points
-        await self.progress.update_task_progress(
-            task_name, 25.0, "Processing...", TaskStatus.IN_PROGRESS
-        )
-        
-        # Example task processing logic
-        if 'file' in context:
-            self.progress.set_last_edit_position(
-                context['file'],
-                "start_of_file"
+        try:
+            # Update task progress
+            await self.progress.update_task_progress(
+                task_name,
+                50.0,
+                "Processing task...",
+                TaskStatus.IN_PROGRESS
             )
             
-        await self.progress.update_task_progress(
-            task_name, 50.0, "Applying changes...", TaskStatus.IN_PROGRESS
-        )
-        
-        # Simulate task work
-        await asyncio.sleep(0.1)
-        
-        await self.progress.update_task_progress(
-            task_name, 75.0, "Finalizing...", TaskStatus.IN_PROGRESS
-        )
+            # Handle different task types based on context
+            task_type = context.get("type", "unknown")
+            
+            if task_type == "file_edit":
+                await self.progress.save_checkpoint({
+                    "file": context["file"],
+                    "position": context.get("position", ""),
+                    "changes": context.get("changes", {})
+                })
+            
+            # Mark task as complete
+            await self.progress.update_task_progress(
+                task_name,
+                100.0,
+                "Task completed",
+                TaskStatus.COMPLETED
+            )
+            
+        except Exception as e:
+            await self.progress.update_task_progress(
+                task_name,
+                0.0,
+                f"Task processing failed: {str(e)}",
+                TaskStatus.FAILED
+            )
+            raise
     
     async def resume_from_checkpoint(self) -> Dict[str, Any]:
-        """Get the information needed to resume work"""
-        resume_point = self.progress.get_resume_point()
-        
-        # Check for any active tasks
-        active_tasks = self.progress.get_active_tasks()
-        if active_tasks:
-            for task_id in active_tasks:
-                progress = self.progress.get_task_progress(task_id)
-                if progress:
-                    self._update_status(
-                        f"Resuming task {task_id} at {progress['progress']}%: {progress['message']}"
-                    )
-        
-        return resume_point
+        """Resume tasks from last checkpoint"""
+        return await self.progress.load_progress()
     
     async def save_edit_checkpoint(self, file_path: str, position: str, 
                                  pending_changes: Optional[Dict[str, Any]] = None) -> None:
-        """Save a checkpoint during file editing"""
-        self.progress.set_last_edit_position(file_path, position)
-        if pending_changes:
-            self.progress.add_pending_change(pending_changes)
-        await self.progress.save_state_async()
+        """Save a checkpoint for file editing progress"""
+        await self.progress.save_checkpoint({
+            'file': file_path,
+            'position': position,
+            'pending_changes': pending_changes or {}
+        })
     
     async def mark_task_complete(self, task_name: str) -> None:
-        """Mark a task as completed and save progress"""
-        await self.progress.complete_task(task_name)
-        self._update_status(f"Marked task as complete: {task_name}")
+        """Mark a task as complete"""
+        await self.progress.update_task_progress(
+            task_name,
+            100.0,
+            "Task completed",
+            TaskStatus.COMPLETED
+        )
     
     def get_remaining_tasks(self) -> List[str]:
-        """Get list of tasks that still need to be completed"""
-        resume_point = self.progress.get_resume_point()
-        return resume_point["remaining_tasks"]
+        """Get list of remaining tasks"""
+        return self.progress.get_pending_tasks()
     
     def get_pending_changes(self) -> List[Dict[str, Any]]:
-        """Get any pending changes that need to be applied"""
-        resume_point = self.progress.get_resume_point()
-        return resume_point["pending_changes"]
+        """Get list of pending changes"""
+        return self.progress.get_pending_changes()
     
     async def reset_progress(self) -> None:
-        """Reset all progress tracking"""
-        self.progress.clear_state()
-        await self.progress.cleanup()
-        self._update_status("Progress tracking reset")
+        """Reset all progress"""
+        await self.progress.reset()
 
     def create_example_task_sequence(self) -> None:
         """Create an example task sequence for demonstration"""
         example_tasks = [
             {
-                "name": "update_folder_structure",
+                "name": "setup_project",
                 "context": {
-                    "folders_to_create": ["Audio-Input", "Audio-Output"],
-                    "files_to_move": {"old_path": "new_path"}
+                    "type": "setup",
+                    "steps": ["create_dirs", "init_config"]
                 }
             },
             {
-                "name": "update_config_manager",
+                "name": "process_files",
                 "context": {
-                    "file": "modules/config/config_manager.py",
-                    "changes": ["Add new folder paths", "Update default settings"]
-                }
-            },
-            {
-                "name": "implement_error_handling",
-                "context": {
-                    "files": ["modules/audio/audio_processor.py"],
-                    "error_types": ["FileNotFound", "PermissionError"]
+                    "type": "file_edit",
+                    "file": "example.py",
+                    "changes": {"add_function": True}
                 }
             }
         ]

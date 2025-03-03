@@ -19,8 +19,8 @@ class TextToSpeechTab:
         self.preview_audio_path = None
         self.audio_playing = False
         self.cancel_flag = False
-        self.auto_insert_enabled = False  # Add this line
-        self.current_font_size = 10  # Add default font size tracking
+        self.auto_insert_enabled = False
+        self.current_font_size = 10
         self.setup_tab()
 
     def setup_tab(self):
@@ -149,23 +149,153 @@ class TextToSpeechTab:
         ttk.Label(engine_frame, text="Engine:").grid(row=0, column=0, padx=5)
         self.tts_engine = tk.StringVar(value="google")
         ttk.Radiobutton(engine_frame, text="Google TTS (Online)", 
-                       variable=self.tts_engine, value="google").grid(row=0, column=1, padx=5)
+                       variable=self.tts_engine, value="google",
+                       command=self.update_voice_options).grid(row=0, column=1, padx=5)
         ttk.Radiobutton(engine_frame, text="Local TTS (Offline)", 
-                       variable=self.tts_engine, value="local").grid(row=0, column=2, padx=5)
+                       variable=self.tts_engine, value="local",
+                       command=self.update_voice_options).grid(row=0, column=2, padx=5)
+        ttk.Radiobutton(engine_frame, text="Hugging Face TTS", 
+                       variable=self.tts_engine, value="huggingface",
+                       command=self.update_voice_options).grid(row=0, column=3, padx=5)
+        
+        # Create container frames for different engine options
+        self.google_frame = ttk.Frame(options_frame)
+        self.local_frame = ttk.Frame(options_frame)
+        self.huggingface_frame = ttk.Frame(options_frame)
         
         # Google voice options
         self.google_lang = tk.StringVar(value="en")
-        ttk.Label(options_frame, text="Google Voice:").grid(row=1, column=0, padx=5)
-        ttk.Radiobutton(options_frame, text="US English", 
-                       variable=self.google_lang, value="en").grid(row=1, column=1, padx=5)
-        ttk.Radiobutton(options_frame, text="British English", 
-                       variable=self.google_lang, value="en-gb").grid(row=1, column=2, padx=5)
+        ttk.Label(self.google_frame, text="Google Voice:").grid(row=0, column=0, padx=5)
+        ttk.Radiobutton(self.google_frame, text="US English", 
+                       variable=self.google_lang, value="en").grid(row=0, column=1, padx=5)
+        ttk.Radiobutton(self.google_frame, text="British English", 
+                       variable=self.google_lang, value="en-gb").grid(row=0, column=2, padx=5)
         
         # Local voice options
-        ttk.Label(options_frame, text="Local Voice:").grid(row=2, column=0, padx=5, pady=5)
-        self.voice_selector = ttk.Combobox(options_frame, state="readonly")
-        self.voice_selector.grid(row=2, column=1, columnspan=2, padx=5, pady=5, sticky="ew")
+        ttk.Label(self.local_frame, text="Local Voice:").grid(row=0, column=0, padx=5)
+        self.voice_selector = ttk.Combobox(self.local_frame, state="readonly")
+        self.voice_selector.grid(row=0, column=1, columnspan=2, padx=5, sticky="ew")
+        
+        # Hugging Face options
+        ttk.Label(self.huggingface_frame, text="Model:").grid(row=0, column=0, padx=5)
+        self.hf_model_selector = ttk.Combobox(self.huggingface_frame, state="readonly")
+        self.hf_model_selector.grid(row=0, column=1, columnspan=2, padx=5, sticky="ew")
+        
+        ttk.Button(self.huggingface_frame, text="Download Model",
+                  command=self.download_hf_model).grid(row=0, column=3, padx=5)
+        
+        # Recommended models frame
+        recommended_frame = ttk.LabelFrame(self.huggingface_frame, text="Recommended Models",
+                                         style="Group.TLabelframe", padding="5")
+        recommended_frame.grid(row=1, column=0, columnspan=4, sticky="ew", pady=5)
+        
+        # Get recommended models with error handling
+        recommended_models = self.audio_processor.get_huggingface_recommended_models() or []
+        
+        if recommended_models:
+            for i, model in enumerate(recommended_models):
+                ttk.Button(recommended_frame, text=model['name'],
+                          command=lambda m=model['id']: self.select_hf_model(m)).grid(
+                              row=i//2, column=i%2, padx=5, pady=2, sticky="ew")
+        else:
+            ttk.Label(recommended_frame, text="No recommended models available").grid(
+                row=0, column=0, padx=5, pady=2)
+        
+        # Update voice lists
         self.update_voice_list()
+        self.update_hf_model_list()
+        
+        # Show initial frame based on default engine
+        self.update_voice_options()
+
+    def update_voice_options(self):
+        """Update visible voice options based on selected engine"""
+        engine = self.tts_engine.get()
+        
+        # Hide all frames first
+        self.google_frame.grid_remove()
+        self.local_frame.grid_remove()
+        self.huggingface_frame.grid_remove()
+        
+        # Show frame based on selected engine
+        if engine == "google":
+            self.google_frame.grid(row=1, column=0, columnspan=3, sticky="ew", pady=5)
+        elif engine == "local":
+            self.local_frame.grid(row=1, column=0, columnspan=3, sticky="ew", pady=5)
+        elif engine == "huggingface":
+            self.huggingface_frame.grid(row=1, column=0, columnspan=3, sticky="ew", pady=5)
+        
+        # Update audio processor engine setting
+        self.audio_processor.set_tts_engine(engine)
+
+    def update_voice_list(self):
+        """Update list of available local TTS voices"""
+        try:
+            voices = self.audio_processor.get_available_voices()
+            voice_names = [voice.name for voice in voices]
+            self.voice_selector['values'] = voice_names
+            if voice_names:
+                self.voice_selector.set(voice_names[0])
+        except Exception as e:
+            logging.error(f"Failed to update voice list: {e}")
+            messagebox.showerror("Error", "Failed to initialize voice list")
+
+    async def update_hf_model_list(self):
+        """Update list of available Hugging Face models"""
+        try:
+            voices = await self.audio_processor.get_huggingface_voices()
+            voice_names = [voice['name'] for voice in voices]
+            self.hf_model_selector['values'] = voice_names
+            if voice_names:
+                self.hf_model_selector.set(voice_names[0])
+                model_id = next((v['id'] for v in voices if v['name'] == voice_names[0]), None)
+                if model_id:
+                    self.audio_processor.set_huggingface_model(model_id)
+        except Exception as e:
+            logging.error(f"Failed to update Hugging Face model list: {e}")
+            messagebox.showerror("Error", "Failed to initialize Hugging Face models")
+
+    def select_hf_model(self, model_id: str):
+        """Select a Hugging Face model"""
+        try:
+            self.hf_model_selector.set(model_id.split('/')[-1])
+            self.audio_processor.set_huggingface_model(model_id)
+            self.update_status(f"Selected model: {model_id}")
+        except Exception as e:
+            logging.error(f"Failed to select Hugging Face model: {e}")
+            messagebox.showerror("Error", f"Failed to select model: {e}")
+
+    async def download_hf_model(self):
+        """Download a selected Hugging Face model"""
+        try:
+            model_name = self.hf_model_selector.get()
+            if not model_name:
+                messagebox.showwarning("Warning", "Please select a model to download")
+                return
+            
+            # Find the full model ID from the name
+            voices = await self.audio_processor.get_huggingface_voices()
+            model_id = next((v['id'] for v in voices if v['name'] == model_name), None)
+            
+            if not model_id:
+                messagebox.showerror("Error", "Could not find model ID")
+                return
+            
+            # Start download with progress updates
+            self.update_status(f"Downloading model: {model_id}")
+            success = await self.audio_processor.hf_manager.download_model(
+                model_id,
+                progress_callback=self.update_status
+            )
+            
+            if success:
+                self.update_status("Model downloaded successfully")
+                await self.update_hf_model_list()
+            else:
+                messagebox.showerror("Error", "Failed to download model")
+        except Exception as e:
+            logging.error(f"Failed to download Hugging Face model: {e}")
+            messagebox.showerror("Error", f"Failed to download model: {e}")
 
     def setup_control_buttons(self):
         control_frame = ttk.LabelFrame(self.parent, text="Controls", 
@@ -201,17 +331,6 @@ class TextToSpeechTab:
                                           command=self.save_generated_audio,
                                           state=tk.DISABLED)
         self.save_audio_button.grid(row=0, column=5, padx=10)
-
-    def update_voice_list(self):
-        try:
-            voices = self.audio_processor.get_available_voices()
-            voice_names = [voice.name for voice in voices]
-            self.voice_selector['values'] = voice_names
-            if voice_names:
-                self.voice_selector.set(voice_names[0])
-        except Exception as e:
-            logging.error(f"Failed to update voice list: {e}")
-            messagebox.showerror("Error", "Failed to initialize voice list")
 
     def handle_text_drop(self, event):
         try:
@@ -317,17 +436,25 @@ class TextToSpeechTab:
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to save text: {str(e)}")
 
-    def start_text_to_speech(self):
+    async def start_text_to_speech(self):
+        """Start text-to-speech conversion"""
         try:
-            # Fix: using tts_text_area instead of text_area
             text = self.tts_text_area.get('1.0', tk.END).strip()
             if not text:
                 messagebox.showwarning("Warning", "Please enter some text to convert")
                 return
 
-            # Fix: using voice_selector instead of voice_combobox
-            voice_name = self.voice_selector.get() if hasattr(self, 'voice_selector') else None
-            
+            # Get engine-specific settings
+            engine_type = self.tts_engine.get()
+            if engine_type == "local":
+                voice_name = self.voice_selector.get()
+            elif engine_type == "huggingface":
+                voice_name = self.hf_model_selector.get()
+                voices = await self.audio_processor.get_huggingface_voices()
+                voice_name = next((v['id'] for v in voices if v['name'] == voice_name), None)
+            else:  # google
+                voice_name = None
+                
             # Create output folder if it doesn't exist
             os.makedirs("Audio-Output", exist_ok=True)
             
@@ -339,45 +466,45 @@ class TextToSpeechTab:
             self.preview_audio_path = output_path
             
             # Disable buttons during conversion
-            # Fix: using tts_start_button and tts_cancel_button instead of convert_button and cancel_button
             self.tts_start_button.configure(state=tk.DISABLED)
             self.tts_cancel_button.configure(state=tk.NORMAL)
             
             # Start conversion in a thread
             self.cancel_flag = False
             threading.Thread(target=self._tts_thread,
-                           args=(text, output_path)).start()
+                           args=(text, output_path, engine_type, voice_name)).start()
 
         except Exception as e:
-            logging.error(f"Error starting text-to-speech conversion: {e}", exc_info=True)
+            logging.error(f"Error starting text-to-speech conversion: {e}")
             self._tts_error(str(e))
 
-    def _tts_thread(self, text, output_path):
+    def _tts_thread(self, text, output_path, engine_type, voice_name):
+        """Thread function for text-to-speech conversion"""
         try:
-            engine_type = self.tts_engine.get()
-            voice_name = self.voice_selector.get() if engine_type == "local" else None
+            # Get language setting for Google TTS
             lang = self.google_lang.get() if engine_type == "google" else None
             
-            # Fix: Using async method properly with asyncio.run
-            # Instead of calling text_to_speech directly, use proper async handling
-            def async_wrapper():
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                try:
-                    return loop.run_until_complete(self.audio_processor.text_to_speech_async(
-                        text, output_path, engine_type, voice_name, lang,
-                        progress_callback=self.update_status
-                    ))
-                finally:
-                    loop.close()
+            # Create async function for conversion
+            async def convert():
+                return await self.audio_processor.text_to_speech_async(
+                    text, output_path, engine_type, voice_name, lang,
+                    progress_callback=self.update_status
+                )
             
-            success = async_wrapper()
+            # Run conversion
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            success = loop.run_until_complete(convert())
+            loop.close()
             
             if success and not self.cancel_flag:
                 self.preview_audio_path = output_path
                 self.root.after(0, self._tts_complete)
+            else:
+                self.root.after(0, lambda: self._tts_error("Conversion failed or was cancelled"))
+                
         except Exception as e:
-            logging.error(f"Error in TTS thread: {e}", exc_info=True)
+            logging.error(f"Error in TTS thread: {e}")
             self.root.after(0, lambda: self._tts_error(str(e)))
 
     def _tts_complete(self):
@@ -434,7 +561,7 @@ class TextToSpeechTab:
                 self.audio_processor.stop_audio()
                 self._reset_play_button()
         except Exception as e:
-            logging.error(f"Error stopping audio: {e}", exc_info=True)
+            logging.error(f"Error stopping audio: {e}")
             self._reset_play_button()
 
     def _reset_play_button(self):
@@ -459,7 +586,7 @@ class TextToSpeechTab:
                 self.update_status("Audio file saved successfully")
                 
         except Exception as e:
-            logging.error(f"Error saving audio file: {e}", exc_info=True)
+            logging.error(f"Error saving audio file: {e}")
             messagebox.showerror("Save Error", f"Failed to save audio file: {e}")
 
     def clear_text(self):
@@ -547,3 +674,28 @@ class TextToSpeechTab:
 
         except Exception as e:
             logging.error(f"Error changing font size: {e}")
+
+    def _show_model_selection(self):
+        """Show dialog for model selection"""
+        try:
+            if not self.audio_processor._hf_initialized:
+                messagebox.showinfo(
+                    "Initialization Required",
+                    "Hugging Face model manager is initializing. Please wait and try again."
+                )
+                return
+                
+            # Get recommended models
+            recommended_models = self.audio_processor.get_huggingface_recommended_models()
+            if not recommended_models:
+                messagebox.showerror(
+                    "Error",
+                    "Failed to get recommended models. Please check your internet connection."
+                )
+                return
+                
+            # Create model selection dialog
+            # ... rest of the existing dialog code ...
+        except Exception as e:
+            logging.error(f"Error showing model selection: {e}")
+            messagebox.showerror("Error", f"Failed to show model selection: {e}")
