@@ -131,6 +131,24 @@ class AudioToTextConverter:
             self.audio_processor = AudioProcessor(self.output_folder)
             self.root.audio_processor = self.audio_processor
             
+            # Ensure asyncio has a running event loop
+            try:
+                import asyncio
+                # Create and set event loop if needed
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_closed():
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                except RuntimeError:
+                    # No event loop in this thread, create one
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                self.root.async_loop = loop  # Store reference
+                logging.info("Asyncio event loop initialized")
+            except Exception as e:
+                logging.error(f"Failed to initialize asyncio event loop: {e}", exc_info=True)
+                
             # Set up styles and GUI
             self.setup_styles()
             self.setup_gui()

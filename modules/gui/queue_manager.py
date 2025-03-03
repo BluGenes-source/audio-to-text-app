@@ -30,11 +30,12 @@ class QueueManager:
         self.terminal_callback = terminal_callback
         self.audio_processor = audio_processor
         self.root = root
-        self.queue_items = []  # Simple list-based queue
+        self._queue_lock = threading.Lock()
+        self.queue_tree = None
+        self.queue_items = []  # Initialize as empty list
         self.current_index = 0
         self.conversion_in_progress = False
         self.cancel_flag = False
-        self._queue_lock = threading.Lock()
         
         # Set up logging
         logging.info("Initializing QueueManager")
@@ -283,9 +284,15 @@ class QueueManager:
     def _update_item_status(self, index: int, status: str) -> None:
         """Update the status of a queue item"""
         try:
+            if self.queue_items is None or index >= len(self.queue_items):
+                return
             self.queue_items[index]["status"] = status
-            item_id = self.queue_tree.get_children()[index]
-            self.queue_tree.set(item_id, "Status", status)
+            if self.queue_tree and self.queue_tree.get_children():
+                try:
+                    item_id = self.queue_tree.get_children()[index]
+                    self.queue_tree.set(item_id, "Status", status)
+                except (IndexError, tk.TclError) as e:
+                    logging.error(f"Error updating tree item: {e}")
         except Exception as e:
             logging.error(f"Error updating item status: {e}")
 
@@ -357,4 +364,6 @@ class QueueManager:
 
     def get_queue_items(self) -> List[str]:
         """Get list of files in queue"""
+        if self.queue_items is None:
+            self.queue_items = []
         return [item["path"] for item in self.queue_items]

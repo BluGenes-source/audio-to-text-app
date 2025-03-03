@@ -1,73 +1,103 @@
 import os
 import json
 import logging
+from dataclasses import dataclass, asdict
+
+@dataclass
+class Config:
+    # Window settings
+    window_width: int = 1000
+    window_height: int = 700
+    window_x: int = 0
+    window_y: int = 0
+    
+    # Theme settings
+    theme: str = 'light'
+    
+    # Audio settings
+    default_voice: str = ""
+    short_pause_length: str = "400"
+    long_pause_length: str = "800"
+    pause_marker: str = "|"
+    queue_delay: int = 1  # Delay between processing queue items (seconds)
+    
+    # Folders
+    input_folder: str = ""
+    transcribes_folder: str = ""
+    dialogs_folder: str = ""
+    output_folder: str = ""
 
 class ConfigManager:
-    def __init__(self, app_dir):
+    def __init__(self, app_dir: str):
         self.app_dir = app_dir
-        self.config_file = os.path.join(app_dir, "config.json")
-        self.theme = "light"
-        self.voice = None
-        self.queue_delay = 0.5
-        self.window_width = None
-        self.window_height = None
-        self.window_x = None
-        self.window_y = None
+        self.config_file = os.path.join(app_dir, 'config.json')
+        self._config = self._load_config()
+        # Ensure folders are set
+        self._ensure_folders_exist()
         
-        try:
-            self.load_config()
-        except Exception as e:
-            logging.error(f"Failed to load config: {e}", exc_info=True)
-            self._set_defaults()
-            try:
-                self.save_config()
-            except Exception as save_error:
-                logging.error(f"Failed to save default config: {save_error}", exc_info=True)
-
-    def load_config(self):
+    def _load_config(self) -> Config:
+        """Load configuration from file or create default"""
         try:
             if os.path.exists(self.config_file):
                 with open(self.config_file, 'r') as f:
-                    config = json.load(f)
-                    self.theme = config.get('theme', self.theme)
-                    self.voice = config.get('voice', self.voice)
-                    self.queue_delay = config.get('queue_delay', self.queue_delay)
-                    self.window_width = config.get('window_width', self.window_width)
-                    self.window_height = config.get('window_height', self.window_height)
-                    self.window_x = config.get('window_x', self.window_x)
-                    self.window_y = config.get('window_y', self.window_y)
-                    logging.info("Configuration loaded successfully")
+                    config_data = json.load(f)
+                    return Config(**config_data)
             else:
-                self._set_defaults()
+                config = Config()
+                self._set_default_paths(config)
                 self.save_config()
+                return config
+                
         except Exception as e:
-            logging.error(f"Error loading config file: {e}", exc_info=True)
-            raise
-
+            logging.error(f"Error loading config: {e}")
+            config = Config()
+            self._set_default_paths(config)
+            return config
+            
+    def _set_default_paths(self, config: Config):
+        """Set default paths relative to app directory"""
+        config.input_folder = os.path.join(self.app_dir, "Audio-Input")
+        config.transcribes_folder = os.path.join(self.app_dir, "Transcribes")
+        config.dialogs_folder = os.path.join(self.app_dir, "Dialogs")
+        config.output_folder = os.path.join(self.app_dir, "output")
+        
+    def _ensure_folders_exist(self):
+        """Ensure all required folders exist"""
+        folders = [
+            self._config.input_folder,
+            self._config.transcribes_folder,
+            self._config.dialogs_folder,
+            self._config.output_folder
+        ]
+        for folder in folders:
+            if folder and not os.path.exists(folder):
+                try:
+                    os.makedirs(folder)
+                    logging.info(f"Created directory: {folder}")
+                except Exception as e:
+                    logging.error(f"Error creating directory {folder}: {e}")
+    
     def save_config(self):
+        """Save current configuration to file"""
         try:
-            config = {
-                'theme': self.theme,
-                'voice': self.voice,
-                'queue_delay': self.queue_delay,
-                'window_width': self.window_width,
-                'window_height': self.window_height,
-                'window_x': self.window_x,
-                'window_y': self.window_y
-            }
             with open(self.config_file, 'w') as f:
-                json.dump(config, f, indent=4)
-            logging.info("Configuration saved successfully")
+                json.dump(asdict(self._config), f, indent=4)
         except Exception as e:
-            logging.error(f"Error saving config file: {e}", exc_info=True)
-            raise
-
-    def _set_defaults(self):
-        logging.info("Setting default configuration values")
-        self.theme = "light"
-        self.voice = None
-        self.queue_delay = 0.5
-        self.window_width = None
-        self.window_height = None
-        self.window_x = None
-        self.window_y = None
+            logging.error(f"Error saving config: {e}")
+            
+    def __getattr__(self, name):
+        """Allow direct access to config properties"""
+        if hasattr(self._config, name):
+            return getattr(self._config, name)
+        raise AttributeError(f"'ConfigManager' has no attribute '{name}'")
+        
+    def __setattr__(self, name, value):
+        """Allow setting config properties directly"""
+        if name in ['app_dir', 'config_file', '_config']:
+            super().__setattr__(name, value)
+        elif hasattr(Config, name):
+            if not hasattr(self, '_config'):
+                super().__setattr__('_config', Config())
+            setattr(self._config, name, value)
+        else:
+            super().__setattr__(name, value)

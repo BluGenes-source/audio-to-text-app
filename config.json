@@ -1,12 +1,16 @@
 {
-    "window_width": 1200,
-    "window_height": 971,
-    "window_x": 402,
-    "window_y": 29,
-    "queue_delay": 30.0,
+    "window_width": 1000,
+    "window_height": 700,
+    "window_x": null,
+    "window_y": null,
     "theme": "light",
-    "font_family": "Helvetica",
-    "font_size": 10,
-    "input_folder": "J:/Dev/Python/TTS_Local/audio-to-text-app/Dialogs",
-    "output_folder": "C:/Users/Herb/Videos/A_RC_5_User_Guide/Intro Quick Start/Transcibes"
+    "default_voice": null,
+    "short_pause_length": "400",
+    "long_pause_length": "800",
+    "pause_marker": "|",
+    "queue_delay": 1,
+    "input_folder": null,
+    "transcribes_folder": "j:\\Dev\\Python\\TTS_Local\\audio-to-text-app\\Transcribes",
+    "dialogs_folder": "j:\\Dev\\Python\\TTS_Local\\audio-to-text-app\\Dialogs",
+    "output_folder": "j:\\Dev\\Python\\TTS_Local\\audio-to-text-app\\output"
 }
