@@ -12,6 +12,7 @@ import tempfile
 import asyncio
 import functools
 import concurrent.futures
+import traceback  # Added import for traceback
 from functools import lru_cache
 from typing import Optional, Callable
 from pathlib import Path
