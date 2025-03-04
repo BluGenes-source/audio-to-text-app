@@ -1,18 +1,21 @@
 import os
 import json
 import logging
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
+from typing import Optional
 
 @dataclass
 class Config:
     # Window settings
     window_width: int = 1000
     window_height: int = 700
-    window_x: int = 0
-    window_y: int = 0
+    window_x: Optional[int] = None
+    window_y: Optional[int] = None
     
     # Theme settings
     theme: str = 'light'
+    font_family: str = "Arial"
+    accent_color: str = "#0078d7"
     
     # Audio settings
     default_voice: str = ""
@@ -34,6 +37,7 @@ class ConfigManager:
         self._config = self._load_config()
         # Ensure folders are set
         self._ensure_folders_exist()
+        logging.info(f"Configuration loaded from {self.config_file}")
         
     def _load_config(self) -> Config:
         """Load configuration from file or create default"""
@@ -41,25 +45,40 @@ class ConfigManager:
             if os.path.exists(self.config_file):
                 with open(self.config_file, 'r') as f:
                     config_data = json.load(f)
-                    return Config(**config_data)
+                    # Create config with defaults first, then update with loaded values
+                    # This ensures any new attributes added to Config class are initialized
+                    config = Config()
+                    for key, value in config_data.items():
+                        if hasattr(config, key):
+                            setattr(config, key, value)
+                    logging.debug(f"Loaded config from file: {self.config_file}")
+                    self._set_default_paths(config)
+                    return config
             else:
+                logging.info(f"Config file not found, creating default at: {self.config_file}")
                 config = Config()
                 self._set_default_paths(config)
-                self.save_config()
+                self.save_config(config)
                 return config
                 
         except Exception as e:
-            logging.error(f"Error loading config: {e}")
+            logging.error(f"Error loading config: {e}", exc_info=True)
+            logging.info("Falling back to default configuration")
             config = Config()
             self._set_default_paths(config)
             return config
             
     def _set_default_paths(self, config: Config):
         """Set default paths relative to app directory"""
-        config.input_folder = os.path.join(self.app_dir, "Audio-Input")
-        config.transcribes_folder = os.path.join(self.app_dir, "Transcribes")
-        config.dialogs_folder = os.path.join(self.app_dir, "Dialogs")
-        config.output_folder = os.path.join(self.app_dir, "output")
+        # Only set paths if they're empty
+        if not config.input_folder:
+            config.input_folder = os.path.join(self.app_dir, "Audio-Input")
+        if not config.transcribes_folder:
+            config.transcribes_folder = os.path.join(self.app_dir, "Transcribes")
+        if not config.dialogs_folder:
+            config.dialogs_folder = os.path.join(self.app_dir, "Dialogs")
+        if not config.output_folder:
+            config.output_folder = os.path.join(self.app_dir, "output")
         
     def _ensure_folders_exist(self):
         """Ensure all required folders exist"""
@@ -77,11 +96,15 @@ class ConfigManager:
                 except Exception as e:
                     logging.error(f"Error creating directory {folder}: {e}")
     
-    def save_config(self):
+    def save_config(self, config=None):
         """Save current configuration to file"""
+        if config is None:
+            config = self._config
+            
         try:
             with open(self.config_file, 'w') as f:
-                json.dump(asdict(self._config), f, indent=4)
+                json.dump(asdict(config), f, indent=4)
+                logging.debug(f"Configuration saved to {self.config_file}")
         except Exception as e:
             logging.error(f"Error saving config: {e}")
             
@@ -93,11 +116,14 @@ class ConfigManager:
         
     def __setattr__(self, name, value):
         """Allow setting config properties directly"""
+        # Special handling for our own attributes
         if name in ['app_dir', 'config_file', '_config']:
             super().__setattr__(name, value)
-        elif hasattr(Config, name):
+        # Handle Config attributes
+        elif hasattr(Config, name) or (hasattr(self, '_config') and hasattr(self._config, name)):
             if not hasattr(self, '_config'):
                 super().__setattr__('_config', Config())
             setattr(self._config, name, value)
+        # Default handling for other attributes
         else:
             super().__setattr__(name, value)

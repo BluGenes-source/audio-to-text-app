@@ -1,10 +1,11 @@
 from typing import Dict, List, Any, Optional, Callable
 from dataclasses import dataclass, asdict
 from enum import Enum, auto
-import json
-import os
-import asyncio
 from datetime import datetime
+import os
+import json
+import asyncio
+import logging
 
 class TaskStatus(Enum):
     PENDING = auto()
@@ -24,22 +25,22 @@ class TaskProgress:
     timestamp: str = None
     
     def __post_init__(self):
-        if self.timestamp is None:
-            self.timestamp = datetime.now().isoformat()
         if self.context is None:
             self.context = {}
+        if self.timestamp is None:
+            self.timestamp = datetime.now().isoformat()
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for serialization"""
-        data = asdict(self)
-        data['status'] = self.status.name
-        return data
+        result = asdict(self)
+        result['status'] = self.status.name
+        return result
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'TaskProgress':
-        """Create instance from dictionary"""
-        data['status'] = TaskStatus[data['status']]
+        if 'status' in data and isinstance(data['status'], str):
+            data['status'] = TaskStatus[data['status']]
         return cls(**data)
+
 
 class AsyncProgressTracker:
     """Asynchronously track progress of tasks"""
@@ -53,9 +54,12 @@ class AsyncProgressTracker:
     async def add_task(self, task_id: str, context: Dict[str, Any] = None) -> None:
         """Add a new task to track"""
         async with self._lock:
+            if context is None:
+                context = {}
             self.tasks[task_id] = TaskProgress(
                 task_id=task_id,
-                context=context or {}
+                context=context,
+                timestamp=datetime.now().isoformat()
             )
             await self._save_progress()
     
@@ -80,22 +84,18 @@ class AsyncProgressTracker:
     def get_pending_tasks(self) -> List[str]:
         """Get list of pending task IDs"""
         return [
-            task_id for task_id, task in self.tasks.items()
+            task_id for task_id, task in self.tasks.items() 
             if task.status in [TaskStatus.PENDING, TaskStatus.IN_PROGRESS]
         ]
     
     def get_pending_changes(self) -> List[Dict[str, Any]]:
-        """Get list of pending changes"""
+        """Get pending changes to be applied"""
         return self.pending_changes
     
     async def save_checkpoint(self, checkpoint_data: Dict[str, Any]) -> None:
-        """Save a progress checkpoint"""
-        async with self._lock:
-            self.pending_changes.append({
-                'timestamp': datetime.now().isoformat(),
-                **checkpoint_data
-            })
-            await self._save_progress()
+        """Save a checkpoint of current progress"""
+        self.pending_changes.append(checkpoint_data)
+        await self._save_progress()
     
     async def load_progress(self) -> Dict[str, Any]:
         """Load progress from file"""
@@ -104,54 +104,71 @@ class AsyncProgressTracker:
                 with open(self.progress_file, 'r') as f:
                     data = json.load(f)
                     
-                # Restore tasks
-                self.tasks = {
-                    task_id: TaskProgress.from_dict(task_data)
-                    for task_id, task_data in data.get('tasks', {}).items()
-                }
-                
-                # Restore pending changes
-                self.pending_changes = data.get('pending_changes', [])
-                
+                    # Load tasks
+                    if 'tasks' in data and isinstance(data['tasks'], list):
+                        for task_data in data['tasks']:
+                            try:
+                                task = TaskProgress.from_dict(task_data)
+                                self.tasks[task.task_id] = task
+                            except Exception as e:
+                                logging.error(f"Error loading task: {e}")
+                    
+                    # Load pending changes
+                    if 'pending_changes' in data and isinstance(data['pending_changes'], list):
+                        self.pending_changes = data['pending_changes']
+                    
+                    return {
+                        'current_task': data.get('current_task', ''),
+                        'last_file': data.get('last_file_edited', ''),
+                        'last_position': data.get('last_position', ''),
+                        'remaining_tasks': self.get_pending_tasks(),
+                        'pending_changes': self.pending_changes
+                    }
+            else:
                 return {
-                    'current_task': data.get('current_task'),
-                    'last_file': data.get('last_file'),
-                    'last_position': data.get('last_position'),
-                    'pending_changes': self.pending_changes,
-                    'remaining_tasks': self.get_pending_tasks()
+                    'current_task': '',
+                    'last_file': '',
+                    'last_position': '',
+                    'remaining_tasks': [],
+                    'pending_changes': []
                 }
+                
         except Exception as e:
-            print(f"Error loading progress: {e}")
+            logging.error(f"Error loading progress: {e}")
             return {
-                'current_task': None,
-                'last_file': None,
-                'last_position': None,
-                'pending_changes': [],
-                'remaining_tasks': []
+                'current_task': '',
+                'last_file': '',
+                'last_position': '',
+                'remaining_tasks': [],
+                'pending_changes': []
             }
     
     async def _save_progress(self) -> None:
-        """Save current progress to file"""
-        async with self._lock:
+        """Save progress to file"""
+        try:
             data = {
-                'tasks': {
-                    task_id: task.to_dict()
-                    for task_id, task in self.tasks.items()
-                },
-                'pending_changes': self.pending_changes,
-                'timestamp': datetime.now().isoformat()
+                'last_update': datetime.now().isoformat(),
+                'current_task': next(iter(self.get_pending_tasks()), ''),
+                'tasks': [task.to_dict() for task in self.tasks.values()],
+                'completed_tasks': [
+                    task_id for task_id, task in self.tasks.items() 
+                    if task.status == TaskStatus.COMPLETED
+                ],
+                'remaining_tasks': self.get_pending_tasks(),
+                'task_context': {},
+                'last_file_edited': '',
+                'pending_changes': self.pending_changes
             }
             
-            try:
-                with open(self.progress_file, 'w') as f:
-                    json.dump(data, f, indent=2)
-            except Exception as e:
-                print(f"Error saving progress: {e}")
+            with open(self.progress_file, 'w') as f:
+                json.dump(data, f, indent=4)
+                
+        except Exception as e:
+            logging.error(f"Error saving progress: {e}")
     
     async def reset(self) -> None:
         """Reset all progress"""
         async with self._lock:
             self.tasks.clear()
             self.pending_changes.clear()
-            if os.path.exists(self.progress_file):
-                os.remove(self.progress_file)
+            await self._save_progress()

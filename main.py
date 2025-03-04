@@ -5,7 +5,19 @@ import sys
 import traceback
 import tkinter as tk
 from tkinter import ttk, messagebox
-from tkinterdnd2 import TkinterDnD
+
+def init_tkinter_dnd():
+    """Initialize TkinterDnD safely"""
+    try:
+        from tkinterdnd2 import TkinterDnD
+        return TkinterDnD.Tk()
+    except ImportError:
+        logging.error("TkinterDnD2 not found. Falling back to standard Tkinter")
+        return tk.Tk()
+    except Exception as e:
+        logging.error(f"Error initializing TkinterDnD: {e}")
+        return tk.Tk()
+
 from modules.config import ConfigManager
 from modules.audio import AudioProcessor, find_ffmpeg
 from modules.utils import setup_logging
@@ -46,37 +58,19 @@ class AudioToTextConverter:
             )
             logging.info("Starting application initialization...")
 
-            # Create root window first - no styling or theme yet
-            self.root = TkinterDnD.Tk()
-            self.root.withdraw()  # Hide window during initialization
-            self.root.title("Audio/Text Converter")
-            
-            # Basic configuration to prevent early theme errors
-            self.style = ttk.Style()
-
-            # Set up file paths and directories
+            # Basic initialization first
             self.app_dir = os.path.dirname(os.path.abspath(__file__))
             logging.info(f"Application directory: {self.app_dir}")
             
-            self.dialogs_folder = os.path.join(self.app_dir, "Dialogs")
-            self.transcribes_folder = os.path.join(self.app_dir, "Transcribes")
-            os.makedirs(self.dialogs_folder, exist_ok=True)
-            os.makedirs(self.transcribes_folder, exist_ok=True)
-            logging.info("Created required directories")
+            # Initialize directories
+            self._init_directories()
             
-            # Create output folder for temporary files
-            self.output_folder = os.path.join(self.app_dir, "output")
-            os.makedirs(self.output_folder, exist_ok=True)
-            
-            # Initialize error handler
+            # Initialize error handler before GUI
             self.error_handler = ErrorHandler(self.app_dir)
-            sys._app_error_handler = self.error_handler  # Make available to global handler
+            sys._app_error_handler = self.error_handler
             logging.info("Error handler initialized")
             
-            # Basic initialization first
-            self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
-            self.dimensions = AppDimensions()
-            
+            # Initialize configuration
             try:
                 self.config = ConfigManager(self.app_dir)
                 logging.info("Configuration manager initialized successfully")
@@ -88,13 +82,11 @@ class AudioToTextConverter:
                     'component': 'ConfigManager'
                 })
                 raise RuntimeError(f"Configuration initialization failed: {config_error}")
+
+            # Initialize GUI components
+            self._init_gui()
             
-            self.audio_processor = None
-            
-            # Set up window size
-            self.setup_window_geometry()
-            
-            # Now set up global exception handler
+            # Set up global exception handler
             sys.excepthook = show_error_and_exit
             
             # Continue with the rest of initialization safely
@@ -108,6 +100,46 @@ class AudioToTextConverter:
                     'context': 'application_init',
                     'component': '__init__'
                 })
+            raise
+
+    def _init_directories(self):
+        """Initialize required directories"""
+        try:
+            self.dialogs_folder = os.path.join(self.app_dir, "Dialogs")
+            self.transcribes_folder = os.path.join(self.app_dir, "Transcribes")
+            self.output_folder = os.path.join(self.app_dir, "output")
+            
+            for folder in [self.dialogs_folder, self.transcribes_folder, self.output_folder]:
+                os.makedirs(folder, exist_ok=True)
+            logging.info("Created required directories")
+        except Exception as e:
+            logging.error(f"Error creating directories: {e}")
+            raise
+
+    def _init_gui(self):
+        """Initialize GUI components"""
+        try:
+            # Create root window with safe TkinterDnD initialization
+            self.root = init_tkinter_dnd()
+            self.root.withdraw()  # Hide window during initialization
+            self.root.title("Audio/Text Converter")
+            
+            # Basic configuration to prevent early theme errors
+            self.style = ttk.Style()
+            self.dimensions = AppDimensions()
+            
+            # Set up window close handler
+            self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+            
+            # Initialize audio processor as None - will be set up in delayed init
+            self.audio_processor = None
+            
+            # Set up initial window geometry
+            self.setup_window_geometry()
+            
+            logging.info("GUI initialization complete")
+        except Exception as e:
+            logging.error(f"Error initializing GUI: {e}")
             raise
 
     @with_retry(RetryConfig(max_retries=2, delay=1.0))
