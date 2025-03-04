@@ -735,3 +735,39 @@ class TextToSpeechTab:
         except Exception as e:
             logging.error(f"Error showing model selection: {e}")
             messagebox.showerror("Error", f"Failed to show model selection: {e}")
+
+    def update_voice_list(self):
+        """Update the list of available voices for local TTS"""
+        try:
+            if not hasattr(self.audio_processor, 'get_available_voices'):
+                self.voice_selector['values'] = ['No voices available']
+                self.voice_selector.current(0)
+                return
+                
+            voices = self.audio_processor.get_available_voices()
+            
+            if not voices:
+                self.voice_selector['values'] = ['No voices available']
+                self.voice_selector.current(0)
+                return
+                
+            voice_names = []
+            for voice in voices:
+                if hasattr(voice, 'name'):
+                    voice_names.append(voice.name)
+                elif hasattr(voice, 'id'):
+                    voice_names.append(voice.id)
+                else:
+                    voice_names.append(str(voice))
+                    
+            self.voice_selector['values'] = voice_names
+            
+            # Select first voice if available
+            if voice_names:
+                self.voice_selector.current(0)
+                
+        except Exception as e:
+            logging.error(f"Error updating voice list: {e}")
+            self.voice_selector['values'] = ['Error loading voices']
+            self.voice_selector.current(0)
+repr()
