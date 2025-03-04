@@ -17,6 +17,11 @@ class Config:
     font_family: str = "Arial"
     accent_color: str = "#0078d7"
     
+    # Color settings
+    text_color: str = "#000000"  # Default black text color
+    bg_color: str = "#f0f0f0"    # Default light background
+    color: str = "#0078d7"       # Default accent color (same as accent_color)
+    
     # Font sizes
     title_font_size: int = 16
     subtitle_font_size: int = 10
