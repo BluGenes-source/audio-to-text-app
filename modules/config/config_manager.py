@@ -21,6 +21,11 @@ class Config:
     text_color: str = "#000000"  # Default black text color
     bg_color: str = "#f0f0f0"    # Default light background
     color: str = "#0078d7"       # Default accent color (same as accent_color)
+    button_inactive: str = "#e0e0e0"  # Color for inactive buttons
+    button_inactive_color: str = "#e0e0e0"  # Another reference to inactive button color
+    button_ready_color: str = "#0078d7"  # Color for ready buttons
+    button_success_color: str = "#4caf50"  # Color for success buttons
+    disabled_color: str = "#cccccc"  # Color for disabled elements
     
     # Font sizes
     title_font_size: int = 16
