@@ -17,6 +17,12 @@ class Config:
     font_family: str = "Arial"
     accent_color: str = "#0078d7"
     
+    # Font sizes
+    title_font_size: int = 16
+    subtitle_font_size: int = 10
+    text_font_size: int = 10
+    font_size: int = 10  # Default font size for general text
+    
     # Audio settings
     default_voice: str = ""
     short_pause_length: str = "400"

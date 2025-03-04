@@ -51,6 +51,12 @@ def setup_styles(config):
     is_dark = getattr(config, 'theme', 'light') == 'dark'
     theme = ThemeColors(is_dark)
     
+    # Get font configuration from config
+    font_family = getattr(config, 'font_family', 'Helvetica')
+    title_font_size = getattr(config, 'title_font_size', 16) 
+    subtitle_font_size = getattr(config, 'subtitle_font_size', 10)
+    text_font_size = getattr(config, 'text_font_size', 10)
+    
     # Configure basic styles
     style.configure('TFrame', background=theme.bg)
     style.configure('TLabelframe', background=theme.bg)
@@ -60,12 +66,12 @@ def setup_styles(config):
     
     # Title styles
     style.configure('Title.TLabel',
-                   font=('Helvetica', 16, 'bold'),
+                   font=(font_family, title_font_size, 'bold'),
                    background=theme.bg,
                    foreground=theme.fg)
     
     style.configure('Subtitle.TLabel',
-                   font=('Helvetica', 10),
+                   font=(font_family, subtitle_font_size),
                    background=theme.bg,
                    foreground=theme.fg)
     
@@ -75,7 +81,7 @@ def setup_styles(config):
                    foreground=theme.fg)
     
     style.configure('Group.TLabelframe.Label',
-                   font=('Helvetica', 10),
+                   font=(font_family, text_font_size),
                    background=theme.bg,
                    foreground=theme.fg)
     
