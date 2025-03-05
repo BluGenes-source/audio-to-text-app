@@ -11,6 +11,7 @@ class ThemeColors:
     LIGHT_ACCENT = "#0078d7"
     LIGHT_ACCENT_HOVER = "#1982d7"
     LIGHT_DISABLED = "#e0e0e0"
+    LIGHT_DISABLED_COLOR = "#a0a0a0"  # Added disabled text color
     LIGHT_SELECTION_BG = "#cce8ff"
     LIGHT_SELECTION_FG = "#000000"
     
@@ -22,6 +23,7 @@ class ThemeColors:
     DARK_ACCENT = "#0078d7"
     DARK_ACCENT_HOVER = "#1982d7"
     DARK_DISABLED = "#404040"
+    DARK_DISABLED_COLOR = "#808080"  # Added disabled text color
     DARK_SELECTION_BG = "#094771"
     DARK_SELECTION_FG = "#ffffff"
     
@@ -33,6 +35,7 @@ class ThemeColors:
         self.accent = self.DARK_ACCENT if is_dark else self.LIGHT_ACCENT
         self.accent_hover = self.DARK_ACCENT_HOVER if is_dark else self.LIGHT_ACCENT_HOVER
         self.disabled = self.DARK_DISABLED if is_dark else self.LIGHT_DISABLED
+        self.disabled_color = self.DARK_DISABLED_COLOR if is_dark else self.LIGHT_DISABLED_COLOR
         self.selection_bg = self.DARK_SELECTION_BG if is_dark else self.LIGHT_SELECTION_BG
         self.selection_fg = self.DARK_SELECTION_FG if is_dark else self.LIGHT_SELECTION_FG
 
@@ -139,11 +142,11 @@ def setup_styles(config):
     style.map('Queue.Control.TButton',
              background=[('active', theme.accent_hover),
                         ('disabled', theme.disabled)],
-             foreground=[('disabled', theme.fg)])
+             foreground=[('disabled', theme.disabled_color)])
              
     style.map('Queue.Process.TButton',
              background=[('active', theme.accent_hover),
                         ('disabled', theme.disabled)],
-             foreground=[('disabled', theme.fg)])
+             foreground=[('disabled', theme.disabled_color)])
     
     return style
