@@ -142,7 +142,13 @@ class AudioProcessor:
         # Run initial async initialization
         try:
             import asyncio
-            loop = asyncio.get_event_loop()
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                # Create a new event loop if there isn't one
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
             if loop.is_running():
                 asyncio.create_task(self._init_hf_async())
             else:
@@ -199,7 +205,13 @@ class AudioProcessor:
 
         try:
             # Run CPU-intensive conversion in thread pool
-            loop = asyncio.get_event_loop()
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                # Create a new event loop if there isn't one
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
             text = await loop.run_in_executor(
                 self._thread_pool,
                 functools.partial(self._convert_audio_to_text_impl, 
@@ -303,7 +315,13 @@ class AudioProcessor:
             else:
                 # Use standard implementation for other engine types
                 # Run CPU-intensive conversion in thread pool
-                loop = asyncio.get_event_loop()
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    # Create a new event loop if there isn't one
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                
                 return await loop.run_in_executor(
                     self._thread_pool,
                     functools.partial(self._text_to_speech_impl,

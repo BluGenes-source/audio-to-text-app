@@ -232,13 +232,21 @@ class QueueManager:
     def start_file_conversion(self, file_path):
         """Start conversion of a single file"""
         try:
+            # Get or create event loop
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                # Create a new event loop if there isn't one
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
             # Start async conversion
             asyncio.run_coroutine_threadsafe(
                 self.audio_processor.convert_audio_to_text_async(
                     file_path,
                     lambda msg: self.terminal_callback(f"{os.path.basename(file_path)}: {msg}")
                 ),
-                asyncio.get_event_loop()
+                loop
             ).add_done_callback(lambda future: self.handle_conversion_result(future, file_path))
             
         except Exception as e:

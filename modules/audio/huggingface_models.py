@@ -58,7 +58,13 @@ class HuggingFaceModelManager:
         
         try:
             # Run in a thread pool to avoid blocking the main thread
-            loop = asyncio.get_event_loop()
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                # Create a new event loop if there isn't one
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
             await loop.run_in_executor(None, self._scan_local_models_sync)
             return self.available_models
         except Exception as e:
@@ -118,7 +124,13 @@ class HuggingFaceModelManager:
                 progress_callback(f"Starting download of {model_id}...")
             
             # Use executor to run the download in a background thread
-            loop = asyncio.get_event_loop()
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                # Create a new event loop if there isn't one
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
             model_path = await loop.run_in_executor(
                 None, 
                 lambda: snapshot_download(
@@ -173,7 +185,13 @@ class HuggingFaceModelManager:
             model_path = self.available_models[model_id]["path"]
             
             # Use executor to run model loading in a background thread
-            loop = asyncio.get_event_loop()
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                # Create a new event loop if there isn't one
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
             processor, model = await loop.run_in_executor(
                 None,
                 lambda: self._load_model_sync(model_id, model_path)
@@ -239,7 +257,13 @@ class HuggingFaceModelManager:
             vocoder_path = self.available_models[vocoder_id]["path"]
             
             # Use executor to run model loading in a background thread
-            loop = asyncio.get_event_loop()
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                # Create a new event loop if there isn't one
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
             vocoder = await loop.run_in_executor(
                 None,
                 lambda: AutoModel.from_pretrained(vocoder_path).to(self.device)
