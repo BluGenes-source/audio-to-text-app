@@ -770,4 +770,3 @@ class TextToSpeechTab:
             logging.error(f"Error updating voice list: {e}")
             self.voice_selector['values'] = ['Error loading voices']
             self.voice_selector.current(0)
-repr()

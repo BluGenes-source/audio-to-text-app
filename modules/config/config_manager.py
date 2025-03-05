@@ -115,6 +115,14 @@ class ConfigManager:
         self._config.button_ready_color = value
     
     @property
+    def button_success_color(self):
+        return self._config.button_success_color
+    
+    @button_success_color.setter
+    def button_success_color(self, value):
+        self._config.button_success_color = value
+    
+    @property
     def title_font_size(self):
         return self._config.title_font_size
     
