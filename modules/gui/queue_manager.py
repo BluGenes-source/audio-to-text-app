@@ -66,6 +66,17 @@ class QueueManager:
                            background='gray75')
         self.style.configure('Queue.Process.Ready.TButton',
                            background='green')
+                           
+        # Make sure styles have valid foreground/background colors for all states
+        self.style.map('Queue.Control.TButton',
+                    background=[('active', 'lightblue'),
+                               ('disabled', 'gray75')],
+                    foreground=[('disabled', 'gray50')])
+            
+        self.style.map('Queue.Process.TButton',
+                    background=[('active', 'lightblue'),
+                               ('disabled', 'gray75')],
+                    foreground=[('disabled', 'gray50')])
 
     def setup_queue_ui(self, frame, process_next_callback, update_queue_button_state_callback):
         """Set up the queue UI elements"""

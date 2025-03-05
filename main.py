@@ -5,6 +5,7 @@ import sys
 import traceback
 import tkinter as tk
 from tkinter import ttk, messagebox
+import asyncio
 
 def init_tkinter_dnd():
     """Initialize TkinterDnD safely"""
@@ -45,6 +46,23 @@ def show_error_and_exit(error_type, value, tb):
     
     messagebox.showerror("Fatal Error", error_msg)
     sys.exit(1)
+
+# Create a new asyncio event loop for the main thread
+def setup_asyncio_event_loop():
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_closed():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        return loop
+    except RuntimeError:
+        # No event loop exists in this thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        return loop
+
+# Initialize asyncio for tkinter
+setup_asyncio_event_loop()
 
 class AudioToTextConverter:
     def __init__(self):
@@ -165,17 +183,8 @@ class AudioToTextConverter:
             
             # Ensure asyncio has a running event loop
             try:
-                import asyncio
-                # Create and set event loop if needed
-                try:
-                    loop = asyncio.get_event_loop()
-                    if loop.is_closed():
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                except RuntimeError:
-                    # No event loop in this thread, create one
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
+                # Use the setup function defined above
+                loop = setup_asyncio_event_loop()
                 self.root.async_loop = loop  # Store reference
                 logging.info("Asyncio event loop initialized")
             except Exception as e:
