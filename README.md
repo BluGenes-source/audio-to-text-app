@@ -2,6 +2,7 @@
 A Python desktop application for converting between audio and text, featuring both speech-to-text and text-to-speech capabilities.
 
 ## What's New
+- Added Mermaid diagram showing module dependencies
 - Added Hugging Face model integration for text-to-speech
 - Fixed configuration attribute errors
 - Improved error handling and logging
@@ -22,10 +23,11 @@ A Python desktop application for converting between audio and text, featuring bo
 - Save and load transcriptions
 
 ## Branch Information
-- The `master` branch always contains a stable, working version of the application
+- The `master` branch contains a stable version of the application that runs, but may not be fully functional
 - New features will be developed in separate feature branches
+- Updates to the master branch may take longer as they require thorough testing
 - Current feature branches:
-  - `local_tts`: Development branch for local AI model integration, starting with Hugging Face API
+  - `local_tts`: Development branch for local AI model integration, starting with Hugging Face API (still under active development)
 
 ## Requirements
 - Python 3.10 or higher
@@ -113,6 +115,38 @@ A Python desktop application for converting between audio and text, featuring bo
    - Ensure you have a working internet connection for model downloads
    - Check that you have sufficient disk space for model storage
    - For CUDA acceleration, make sure you have compatible NVIDIA drivers
+
+## Module Architecture
+Below is a diagram showing the dependencies between the main modules in the application:
+
+```mermaid
+graph TD
+    main[main.py] --> gui[modules/gui]
+    main --> config[modules/config]
+    gui --> audio[modules/audio]
+    gui --> utils[modules/utils]
+    gui --> config
+    audio --> utils
+    audio --> config
+    
+    %% Detailed submodules
+    gui --> gui_tabs[gui/tabs.py]
+    gui --> gui_player[gui/audio_player.py]
+    gui --> gui_conversion[gui/conversion_handler.py]
+    gui --> gui_queue[gui/queue_manager.py]
+    gui --> gui_settings[gui/settings_tab.py]
+    gui --> gui_tts[gui/text_to_speech_tab.py]
+    
+    audio --> audio_processor[audio/audio_processor.py]
+    audio --> huggingface[audio/huggingface_models.py]
+    
+    utils --> error_handler[utils/error_handler.py]
+    utils --> logging[utils/logging_utils.py]
+    utils --> progress[utils/progress_tracker.py]
+    utils --> task_manager[utils/task_manager.py]
+    
+    config --> config_manager[config/config_manager.py]
+```
 
 ## Contributing
 Contributions are welcome! Please feel free to submit a Pull Request.
