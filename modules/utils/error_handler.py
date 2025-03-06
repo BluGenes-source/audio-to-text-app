@@ -5,7 +5,6 @@ import time
 from typing import Callable, Optional, TypeVar, Dict, Any
 from dataclasses import dataclass
 from datetime import datetime
-import traceback
 
 T = TypeVar('T')
 
@@ -19,34 +18,14 @@ class ErrorContext:
     additional_info: Dict[str, Any] = None
 
 class RetryConfig:
-    """Configuration for retry decorator"""
-    def __init__(self, max_retries=3, delay=1.0):
+    def __init__(self, max_retries: int = 3, 
+                 delay: float = 1.0,
+                 backoff_factor: float = 2.0,
+                 exceptions: tuple = (Exception,)):
         self.max_retries = max_retries
         self.delay = delay
-
-def with_retry(config):
-    """Decorator for retrying a function on exception"""
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            attempts = 0
-            last_exception = None
-            
-            while attempts < config.max_retries:
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    attempts += 1
-                    last_exception = e
-                    logging.warning(f"Attempt {attempts} failed for {func.__name__}: {e}")
-                    if attempts < config.max_retries:
-                        time.sleep(config.delay)
-            
-            # Re-raise the last exception after all retries are exhausted
-            logging.error(f"Function {func.__name__} failed after {config.max_retries} attempts")
-            raise last_exception
-        return wrapper
-    return decorator
+        self.backoff_factor = backoff_factor
+        self.exceptions = exceptions
 
 class ErrorTracker:
     def __init__(self, log_dir: str):
@@ -79,34 +58,52 @@ class ErrorTracker:
             return {k: v for k, v in self.errors.items() if v.error_type == error_type}
         return self.errors
 
+def with_retry(retry_config: RetryConfig = None):
+    """Decorator for implementing retry logic with exponential backoff"""
+    if retry_config is None:
+        retry_config = RetryConfig()
+
+    def decorator(func: Callable[..., T]) -> Callable[..., T]:
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> T:
+            last_exception = None
+            delay = retry_config.delay
+
+            for attempt in range(retry_config.max_retries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except retry_config.exceptions as e:
+                    last_exception = e
+                    if attempt < retry_config.max_retries:
+                        logging.warning(
+                            f"Attempt {attempt + 1} failed for {func.__name__}: {str(e)}. "
+                            f"Retrying in {delay:.1f} seconds..."
+                        )
+                        time.sleep(delay)
+                        delay *= retry_config.backoff_factor
+                    continue
+
+            raise last_exception
+
+        return wrapper
+    return decorator
+
 class ErrorHandler:
-    """Handle and log errors"""
-    def __init__(self, app_dir):
-        self.app_dir = app_dir
-        self.error_log_path = os.path.join(app_dir, "error_log.txt")
-        
-    def handle_error(self, error, context=None):
-        """Handle an error, logging it to file and console"""
-        try:
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            error_message = f"{timestamp} - ERROR: {str(error)}"
-            
-            if context:
-                error_message += f"\nContext: {context}"
-            
-            error_message += f"\n{traceback.format_exc()}\n"
-            
-            # Log to console
-            logging.error(error_message)
-            
-            # Log to file
-            with open(self.error_log_path, 'a', encoding='utf-8') as f:
-                f.write(f"{error_message}\n{'='*50}\n")
-                
-        except Exception as e:
-            # If error handling itself fails, log to console
-            logging.critical(f"Error in error handler: {e}")
-            print(f"Error in error handler: {e}")
+    def __init__(self, app_dir: str):
+        self.tracker = ErrorTracker(app_dir)
+        self.default_retry_config = RetryConfig()
+
+    def handle_error(self, error: Exception, context: Dict[str, Any] = None) -> ErrorContext:
+        """Handle an error and log it"""
+        error_context = ErrorContext(
+            error_type=error.__class__.__name__,
+            message=str(error),
+            timestamp=datetime.now(),
+            file_path=context.get('file_path') if context else None,
+            additional_info=context
+        )
+        self.tracker.log_error(error_context)
+        return error_context
 
     def create_retry_config(self, **kwargs) -> RetryConfig:
         """Create a custom retry configuration"""

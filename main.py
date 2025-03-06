@@ -6,34 +6,6 @@ import traceback
 import tkinter as tk
 from tkinter import ttk, messagebox
 import asyncio
-import subprocess
-from pathlib import Path
-
-# Check if we're running from the batch file or directly
-# Remove the virtual environment logic since we handle it in the batch file
-print("Initializing application...")
-
-# Create necessary modules directory structure if it doesn't exist
-# Use absolute paths to ensure proper directory creation
-app_dir = os.path.dirname(os.path.abspath(__file__))
-os.makedirs(os.path.join(app_dir, 'modules', 'utils'), exist_ok=True)
-os.makedirs(os.path.join(app_dir, 'modules', 'audio'), exist_ok=True)
-os.makedirs(os.path.join(app_dir, 'modules', 'gui'), exist_ok=True)
-
-# Create empty __init__.py files in all module directories to ensure they're recognized as packages
-module_dirs = [
-    os.path.join(app_dir, 'modules'),
-    os.path.join(app_dir, 'modules', 'utils'),
-    os.path.join(app_dir, 'modules', 'audio'),
-    os.path.join(app_dir, 'modules', 'gui')
-]
-
-for dir_path in module_dirs:
-    init_file = os.path.join(dir_path, '__init__.py')
-    if not os.path.exists(init_file):
-        with open(init_file, 'w') as f:
-            f.write('# This file makes the directory a Python package\n')
-        print(f"Created {init_file}")
 
 def init_tkinter_dnd():
     """Initialize TkinterDnD safely"""
@@ -42,155 +14,19 @@ def init_tkinter_dnd():
         return TkinterDnD.Tk()
     except ImportError:
         logging.error("TkinterDnD2 not found. Falling back to standard Tkinter")
-        # Try to install tkinterdnd2 automatically
-        try:
-            import subprocess
-            print("Attempting to install TkinterDnD2...")
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "tkinterdnd2"])
-            from tkinterdnd2 import TkinterDnD
-            return TkinterDnD.Tk()
-        except Exception as e:
-            logging.error(f"Failed to install TkinterDnD2: {e}")
-            return tk.Tk()
+        return tk.Tk()
     except Exception as e:
         logging.error(f"Error initializing TkinterDnD: {e}")
         return tk.Tk()
 
-# Import error handling for module imports
-try:
-    # First try importing our modules
-    sys.path.insert(0, app_dir)  # Add app directory to path to ensure imports work
-    from modules.config import ConfigManager
-    from modules.audio import AudioProcessor, find_ffmpeg
-    from modules.utils import setup_logging
-    from modules.utils.error_handler import ErrorHandler, with_retry, RetryConfig
-    from modules.gui import setup_styles, AppDimensions
-    from modules.gui.text_to_speech_tab import TextToSpeechTab
-    from modules.gui.settings_tab import SettingsTab
-    from modules.gui.tabs import SpeechToTextTab
-except ImportError as e:
-    print(f"Error importing modules: {e}")
-    print("Creating placeholder modules to allow the application to start...")
-    
-    # Create basic placeholder modules
-    import sys
-    
-    # Create config module placeholder
-    class ConfigManager:
-        def __init__(self, app_dir):
-            self.app_dir = app_dir
-            self.window_width = 800
-            self.window_height = 600
-            self.window_x = None
-            self.window_y = None
-        def save_config(self):
-            pass
-    
-    sys.modules['modules.config'] = type('', (), {'ConfigManager': ConfigManager})()
-    
-    # Create other placeholder modules as needed
-    class AudioProcessor:
-        def __init__(self, output_folder):
-            self.output_folder = output_folder
-        def stop_audio(self):
-            pass
-        def cleanup(self):
-            pass
-    
-    def find_ffmpeg():
-        return None
-    
-    sys.modules['modules.audio'] = type('', (), {'AudioProcessor': AudioProcessor, 'find_ffmpeg': find_ffmpeg})()
-    
-    # Create utility placeholders
-    def setup_logging(log_queue):
-        return logging.getLogger()
-    
-    class ErrorHandler:
-        def __init__(self, app_dir):
-            self.app_dir = app_dir
-        def handle_error(self, error, context=None):
-            logging.error(f"Error: {error}, Context: {context}")
-    
-    class RetryConfig:
-        def __init__(self, max_retries=3, delay=1.0):
-            self.max_retries = max_retries
-            self.delay = delay
-    
-    def with_retry(config):
-        def decorator(func):
-            def wrapper(*args, **kwargs):
-                return func(*args, **kwargs)
-            return wrapper
-        return decorator
-    
-    sys.modules['modules.utils'] = type('', (), {'setup_logging': setup_logging})()
-    sys.modules['modules.utils.error_handler'] = type('', (), {
-        'ErrorHandler': ErrorHandler, 
-        'with_retry': with_retry,
-        'RetryConfig': RetryConfig
-    })()
-    
-    # Create GUI placeholders
-    def setup_styles(config):
-        return ttk.Style()
-    
-    class AppDimensions:
-        def __init__(self):
-            self.default_width = 800
-            self.default_height = 600
-            self.min_width = 600
-    
-    class BaseTab:
-        def __init__(self, parent, *args, **kwargs):
-            self.parent = parent
-    
-    TextToSpeechTab = type('TextToSpeechTab', (BaseTab,), {})
-    SettingsTab = type('SettingsTab', (BaseTab,), {})
-    SpeechToTextTab = type('SpeechToTextTab', (BaseTab,), {})
-    
-    sys.modules['modules.gui'] = type('', (), {
-        'setup_styles': setup_styles,
-        'AppDimensions': AppDimensions
-    })()
-    sys.modules['modules.gui.text_to_speech_tab'] = type('', (), {'TextToSpeechTab': TextToSpeechTab})()
-    sys.modules['modules.gui.settings_tab'] = type('', (), {'SettingsTab': SettingsTab})()
-    sys.modules['modules.gui.tabs'] = type('', (), {'SpeechToTextTab': SpeechToTextTab})()
-
-# Safer function to check and install requirements
-def check_and_install_requirements():
-    try:
-        import subprocess
-        required_packages = ['tkinterdnd2', 'asyncio']
-        for package in required_packages:
-            try:
-                __import__(package)
-                print(f"Package {package} is already installed")
-            except ImportError:
-                print(f"Installing required package: {package}")
-                subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-                print(f"Successfully installed {package}")
-        
-        # Create empty __init__.py files in all module directories to ensure they're recognized as packages
-        module_dirs = [
-            os.path.join(app_dir, 'modules'),
-            os.path.join(app_dir, 'modules', 'utils'),
-            os.path.join(app_dir, 'modules', 'audio'),
-            os.path.join(app_dir, 'modules', 'gui')
-        ]
-        
-        for dir_path in module_dirs:
-            init_file = os.path.join(dir_path, '__init__.py')
-            if not os.path.exists(init_file):
-                with open(init_file, 'w') as f:
-                    f.write('# This file makes the directory a Python package\n')
-                print(f"Created {init_file}")
-                
-    except Exception as e:
-        print(f"Error checking/installing requirements: {e}")
-
-# Call the function to check and install requirements
-check_and_install_requirements()
+from modules.config import ConfigManager
+from modules.audio import AudioProcessor, find_ffmpeg
+from modules.utils import setup_logging
+from modules.utils.error_handler import ErrorHandler, with_retry, RetryConfig
+from modules.gui import setup_styles, AppDimensions
+from modules.gui.text_to_speech_tab import TextToSpeechTab
+from modules.gui.settings_tab import SettingsTab
+from modules.gui.tabs import SpeechToTextTab
 
 def show_error_and_exit(error_type, value, tb):
     """Global error handler to show error dialog and exit gracefully"""
@@ -245,12 +81,7 @@ class AudioToTextConverter:
             logging.info(f"Application directory: {self.app_dir}")
             
             # Initialize directories
-            try:
-                self._init_directories()
-            except Exception as e:
-                logging.error(f"Failed to initialize directories: {e}")
-                messagebox.showerror("Error", f"Failed to create required directories: {e}")
-                raise
+            self._init_directories()
             
             # Initialize error handler before GUI
             self.error_handler = ErrorHandler(self.app_dir)
@@ -296,19 +127,8 @@ class AudioToTextConverter:
             self.transcribes_folder = os.path.join(self.app_dir, "Transcribes")
             self.output_folder = os.path.join(self.app_dir, "output")
             
-            # Use exist_ok=True to prevent errors if directories already exist
             for folder in [self.dialogs_folder, self.transcribes_folder, self.output_folder]:
-                try:
-                    os.makedirs(folder, exist_ok=True)
-                    # Test write permissions
-                    test_file = os.path.join(folder, "__test_write__.tmp")
-                    with open(test_file, 'w') as f:
-                        f.write("test")
-                    os.remove(test_file)
-                except (PermissionError, OSError) as pe:
-                    logging.error(f"Permission error creating directory {folder}: {pe}")
-                    raise RuntimeError(f"Cannot create or write to directory {folder}. Please check permissions.")
-            
+                os.makedirs(folder, exist_ok=True)
             logging.info("Created required directories")
         except Exception as e:
             logging.error(f"Error creating directories: {e}")
@@ -343,19 +163,11 @@ class AudioToTextConverter:
     @with_retry(RetryConfig(max_retries=2, delay=1.0))
     def _setup_ffmpeg(self):
         """Set up FFmpeg configuration with retry"""
-        try:
-            ffmpeg_path = find_ffmpeg()
-            if not ffmpeg_path:
-                # Create tools directory if it doesn't exist
-                tools_dir = os.path.join(self.app_dir, "tools")
-                os.makedirs(tools_dir, exist_ok=True)
-                self._show_ffmpeg_instructions()
-                raise RuntimeError("FFmpeg not found")
-            return ffmpeg_path
-        except Exception as e:
-            logging.error(f"Error setting up FFmpeg: {e}")
+        ffmpeg_path = find_ffmpeg()
+        if not ffmpeg_path:
             self._show_ffmpeg_instructions()
-            return None
+            raise RuntimeError("FFmpeg not found")
+        return ffmpeg_path
 
     def _delayed_init(self):
         """Complete initialization after window is fully created"""
@@ -610,7 +422,7 @@ class AudioToTextConverter:
 
     def _on_window_configure(self, event):
         """Handle window configuration changes"""
-        if (event.widget == self.root):
+        if event.widget == self.root:
             try:
                 geometry = self.root.geometry()
                 try:
@@ -663,24 +475,11 @@ Would you like to open the download page now?"""
 
 if __name__ == "__main__":
     try:
-        # Ensure log directory exists
-        os.makedirs(os.path.dirname(os.path.abspath(__file__)), exist_ok=True)
-        
-        # Use a try-except for logging setup
-        try:
-            logging.basicConfig(
-                filename='audio_converter.log',
-                level=logging.INFO,
-                format='%(asctime)s - %(levelname)s - %(message)s'
-            )
-        except Exception as log_error:
-            print(f"Warning: Could not set up logging to file: {log_error}")
-            # Set up console logging as fallback
-            logging.basicConfig(
-                level=logging.INFO,
-                format='%(asctime)s - %(levelname)s - %(message)s'
-            )
-        
+        logging.basicConfig(
+            filename='audio_converter.log',
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)s - %(message)s'
+        )
         logging.info("Starting application initialization...")
         app = AudioToTextConverter()
         logging.info("Application initialized successfully")
