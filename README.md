@@ -2,6 +2,7 @@
 A Python desktop application for converting between audio and text, featuring both speech-to-text and text-to-speech capabilities.
 
 ## What's New
+- Added Mermaid diagram showing module dependencies
 - Added Hugging Face model integration for text-to-speech
 - Fixed configuration attribute errors
 - Improved error handling and logging
@@ -22,10 +23,11 @@ A Python desktop application for converting between audio and text, featuring bo
 - Save and load transcriptions
 
 ## Branch Information
-- The `master` branch always contains a stable, working version of the application
+- The `master` branch contains a stable version of the application that runs, but may not be fully functional
 - New features will be developed in separate feature branches
+- Updates to the master branch may take longer as they require thorough testing
 - Current feature branches:
-  - `local_tts`: Development branch for local AI model integration, starting with Hugging Face API
+  - `local_tts`: Development branch for local AI model integration, starting with Hugging Face API (still under active development)
 
 ## Requirements
 - Python 3.10 or higher
