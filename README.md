@@ -120,32 +120,49 @@ A Python desktop application for converting between audio and text, featuring bo
 Below is a diagram showing the dependencies between the main modules in the application:
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'fontSize': '16px', 'fontFamily': 'arial' }}}%%
 graph TD
-    main[main.py] --> gui[modules/gui]
-    main --> config[modules/config]
-    gui --> audio[modules/audio]
-    gui --> utils[modules/utils]
-    gui --> config
-    audio --> utils
-    audio --> config
+    %% Main module relationships with color coding
+    main[main.py] -->|initializes| gui[modules/gui]:::coreModule
+    main[main.py] -->|loads| config[modules/config]:::configModule
+    gui -->|processes audio| audio[modules/audio]:::audioModule
+    gui -->|uses utilities| utils[modules/utils]:::utilsModule
+    gui -->|reads settings| config
+    audio -->|error handling| utils
+    audio -->|reads settings| config
     
     %% Detailed submodules
-    gui --> gui_tabs[gui/tabs.py]
-    gui --> gui_player[gui/audio_player.py]
-    gui --> gui_conversion[gui/conversion_handler.py]
-    gui --> gui_queue[gui/queue_manager.py]
-    gui --> gui_settings[gui/settings_tab.py]
-    gui --> gui_tts[gui/text_to_speech_tab.py]
+    %% GUI submodules
+    gui -->|includes| gui_tabs[gui/tabs.py]:::guiComponent
+    gui -->|includes| gui_player[gui/audio_player.py]:::guiComponent
+    gui -->|includes| gui_conversion[gui/conversion_handler.py]:::guiComponent
+    gui -->|includes| gui_queue[gui/queue_manager.py]:::guiComponent
+    gui -->|includes| gui_settings[gui/settings_tab.py]:::guiComponent
+    gui -->|includes| gui_tts[gui/text_to_speech_tab.py]:::guiComponent
     
-    audio --> audio_processor[audio/audio_processor.py]
-    audio --> huggingface[audio/huggingface_models.py]
+    %% Audio submodules
+    audio -->|includes| audio_processor[audio/audio_processor.py]:::audioComponent
+    audio -->|includes| huggingface[audio/huggingface_models.py]:::audioComponent
     
-    utils --> error_handler[utils/error_handler.py]
-    utils --> logging[utils/logging_utils.py]
-    utils --> progress[utils/progress_tracker.py]
-    utils --> task_manager[utils/task_manager.py]
+    %% Utils submodules
+    utils -->|includes| error_handler[utils/error_handler.py]:::utilsComponent
+    utils -->|includes| logging[utils/logging_utils.py]:::utilsComponent
+    utils -->|includes| progress[utils/progress_tracker.py]:::utilsComponent
+    utils -->|includes| task_manager[utils/task_manager.py]:::utilsComponent
     
-    config --> config_manager[config/config_manager.py]
+    %% Config submodule
+    config -->|includes| config_manager[config/config_manager.py]:::configComponent
+    
+    %% Define styles for different module types
+    classDef coreModule fill:#f96,stroke:#333,stroke-width:2px
+    classDef configModule fill:#9cf,stroke:#333,stroke-width:2px
+    classDef audioModule fill:#f9c,stroke:#333,stroke-width:2px
+    classDef utilsModule fill:#9f9,stroke:#333,stroke-width:2px
+    
+    classDef guiComponent fill:#fa8,stroke:#333,stroke-width:1px
+    classDef audioComponent fill:#fad,stroke:#333,stroke-width:1px
+    classDef utilsComponent fill:#afa,stroke:#333,stroke-width:1px
+    classDef configComponent fill:#adf,stroke:#333,stroke-width:1px
 ```
 
 ## Contributing
