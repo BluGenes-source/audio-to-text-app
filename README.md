@@ -120,38 +120,38 @@ A Python desktop application for converting between audio and text, featuring bo
 Below is a diagram showing the dependencies between the main modules in the application:
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'fontSize': '16px', 'fontFamily': 'arial' }}}%%
+%%{init: {'theme': 'base', 'themeVariables': { 'fontSize': '16px', 'fontFamily': 'arial', 'lineColor': 'white', 'edgeLabelBackground': 'transparent' }}}%%
 graph TD
     %% Main module relationships with color coding
-    main[main.py] -->|initializes| gui[modules/gui]:::coreModule
-    main[main.py] -->|loads| config[modules/config]:::configModule
-    gui -->|processes audio| audio[modules/audio]:::audioModule
-    gui -->|uses utilities| utils[modules/utils]:::utilsModule
-    gui -->|reads settings| config
-    audio -->|error handling| utils
-    audio -->|reads settings| config
+    main[main.py] -- initializes --> gui[modules/gui]:::coreModule
+    main -- loads --> config[modules/config]:::configModule
+    gui -- processes audio --> audio[modules/audio]:::audioModule
+    gui -- uses utilities --> utils[modules/utils]:::utilsModule
+    gui -- reads settings --> config
+    audio -- error handling --> utils
+    audio -- reads settings --> config
     
     %% Detailed submodules
     %% GUI submodules
-    gui -->|includes| gui_tabs[gui/tabs.py]:::guiComponent
-    gui -->|includes| gui_player[gui/audio_player.py]:::guiComponent
-    gui -->|includes| gui_conversion[gui/conversion_handler.py]:::guiComponent
-    gui -->|includes| gui_queue[gui/queue_manager.py]:::guiComponent
-    gui -->|includes| gui_settings[gui/settings_tab.py]:::guiComponent
-    gui -->|includes| gui_tts[gui/text_to_speech_tab.py]:::guiComponent
+    gui -- includes --> gui_tabs[gui/tabs.py]:::guiComponent
+    gui -- includes --> gui_player[gui/audio_player.py]:::guiComponent
+    gui -- includes --> gui_conversion[gui/conversion_handler.py]:::guiComponent
+    gui -- includes --> gui_queue[gui/queue_manager.py]:::guiComponent
+    gui -- includes --> gui_settings[gui/settings_tab.py]:::guiComponent
+    gui -- includes --> gui_tts[gui/text_to_speech_tab.py]:::guiComponent
     
     %% Audio submodules
-    audio -->|includes| audio_processor[audio/audio_processor.py]:::audioComponent
-    audio -->|includes| huggingface[audio/huggingface_models.py]:::audioComponent
+    audio -- includes --> audio_processor[audio/audio_processor.py]:::audioComponent
+    audio -- includes --> huggingface[audio/huggingface_models.py]:::audioComponent
     
     %% Utils submodules
-    utils -->|includes| error_handler[utils/error_handler.py]:::utilsComponent
-    utils -->|includes| logging[utils/logging_utils.py]:::utilsComponent
-    utils -->|includes| progress[utils/progress_tracker.py]:::utilsComponent
-    utils -->|includes| task_manager[utils/task_manager.py]:::utilsComponent
+    utils -- includes --> error_handler[utils/error_handler.py]:::utilsComponent
+    utils -- includes --> logging[utils/logging_utils.py]:::utilsComponent
+    utils -- includes --> progress[utils/progress_tracker.py]:::utilsComponent
+    utils -- includes --> task_manager[utils/task_manager.py]:::utilsComponent
     
     %% Config submodule
-    config -->|includes| config_manager[config/config_manager.py]:::configComponent
+    config -- includes --> config_manager[config/config_manager.py]:::configComponent
     
     %% Define styles for different module types
     classDef coreModule fill:#f96,stroke:#333,stroke-width:2px
@@ -163,6 +163,9 @@ graph TD
     classDef audioComponent fill:#fad,stroke:#333,stroke-width:1px
     classDef utilsComponent fill:#afa,stroke:#333,stroke-width:1px
     classDef configComponent fill:#adf,stroke:#333,stroke-width:1px
+    
+    %% Define the edge/link style to be white
+    linkStyle default stroke:white,stroke-width:1.5px;
 ```
 
 ## Contributing
