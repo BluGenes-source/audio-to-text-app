@@ -1,5 +1,15 @@
-# Text-to-Speech Converter Application (v1.0.0)
+# Text-to-Speech Converter Application (v1.1.0)
 A Python desktop application for converting text to speech with multiple engine options.
+
+## What's New in v1.1.0
+- Improved asyncio integration for better performance and stability
+- Enhanced error handling and recovery mechanisms
+- Added proper window geometry management and position saving
+- Optimized application startup and shutdown sequences
+- Fixed FFmpeg detection and installation instructions
+- Improved logging system with better error diagnostics
+- Updated user interface with more consistent styling
+- Better handling of background tasks and resource cleanup
 
 ## What's New in v1.0.0
 - Added version number display in application title and UI
@@ -33,6 +43,7 @@ A Python desktop application for converting text to speech with multiple engine 
 - Python 3.10 or higher
 - FFmpeg and FFprobe executables (for audio processing)
 - Required Python packages (see requirements.txt)
+- TkinterDnD2 package for drag and drop support (optional, will fall back to standard Tkinter)
 
 ## Installation
 1. Clone the repository:
@@ -95,6 +106,7 @@ A Python desktop application for converting text to speech with multiple engine 
 1. FFmpeg Missing Error:
    - Ensure both ffmpeg.exe and ffprobe.exe are in the tools folder
    - Both executables must have execute permissions
+   - The application will show installation instructions if FFmpeg is not found
 2. Audio Playback Issues:
    - Make sure no other application is using your audio device
    - Try restarting the application if audio becomes unresponsive
@@ -102,6 +114,9 @@ A Python desktop application for converting text to speech with multiple engine 
    - Ensure you have a working internet connection for model downloads
    - Check that you have sufficient disk space for model storage
    - For CUDA acceleration, make sure you have compatible NVIDIA drivers
+4. Window Position Reset:
+   - If the application starts in an unexpected position, try deleting the config.json file
+   - This will reset all settings to defaults including window position
 
 ## Module Architecture
 Below is a diagram showing the dependencies between the main modules in the application:
