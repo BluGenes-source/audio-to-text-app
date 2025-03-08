@@ -41,15 +41,24 @@ class QueueManager:
         logging.info("Initializing QueueManager")
         
         # Set up logging with proper file handler
-        self.logger = logging.getLogger('QueueManager')
-        fh = logging.FileHandler('conversion_errors.log')
-        fh.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-        self.logger.addHandler(fh)
-        self.logger.setLevel(logging.INFO)
+        self._setup_logging()
         
         # Set up theme-based styles for buttons
         self.style = ttk.Style()
         self.setup_theme_styles()
+
+    def _setup_logging(self):
+        """Set up logging for conversion errors"""
+        logs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'logs')
+        os.makedirs(logs_dir, exist_ok=True)
+        
+        self.logger = logging.getLogger('QueueManager')
+        self.logger.setLevel(logging.ERROR)
+        
+        fh = logging.FileHandler(os.path.join(logs_dir, 'conversion_errors.log'))
+        fh.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+        self.logger.addHandler(fh)
+        self.logger.setLevel(logging.INFO)
 
     def setup_theme_styles(self):
         """Set up theme-specific styles for queue buttons"""

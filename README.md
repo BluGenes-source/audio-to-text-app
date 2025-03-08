@@ -1,7 +1,8 @@
-# Text-to-Speech Converter Application
+# Text-to-Speech Converter Application (v1.0.0)
 A Python desktop application for converting text to speech with multiple engine options.
 
-## What's New
+## What's New in v1.0.0
+- Added version number display in application title and UI
 - Streamlined application focused solely on text-to-speech functionality
 - Added Hugging Face model integration for advanced AI-powered speech synthesis
 - Fixed configuration attribute errors

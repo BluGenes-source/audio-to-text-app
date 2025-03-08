@@ -6,6 +6,10 @@ from typing import Optional
 
 @dataclass
 class Config:
+    # Version info
+    version: str = "1.0.0"
+    build_number: int = 1
+    
     # Window settings
     window_width: int = 1000
     window_height: int = 700
@@ -45,6 +49,7 @@ class Config:
     transcribes_folder: str = ""
     dialogs_folder: str = ""
     output_folder: str = ""
+    logs_folder: str = ""  # Added logs folder
 
 class ConfigManager:
     def __init__(self, app_dir: str):
@@ -234,6 +239,14 @@ class ConfigManager:
     def queue_delay(self, value):
         self._config.queue_delay = value
     
+    @property
+    def logs_folder(self):
+        return self._config.logs_folder
+    
+    @logs_folder.setter
+    def logs_folder(self, value):
+        self._config.logs_folder = value
+    
     def _load_config(self) -> Config:
         """Load configuration from file or create default"""
         try:
@@ -274,6 +287,8 @@ class ConfigManager:
             config.dialogs_folder = os.path.join(self.app_dir, "Dialogs")
         if not config.output_folder:
             config.output_folder = os.path.join(self.app_dir, "output")
+        if not config.logs_folder:
+            config.logs_folder = os.path.join(self.app_dir, "logs")
         
     def _ensure_folders_exist(self):
         """Ensure all required folders exist"""
@@ -281,7 +296,8 @@ class ConfigManager:
             self._config.input_folder,
             self._config.transcribes_folder,
             self._config.dialogs_folder,
-            self._config.output_folder
+            self._config.output_folder,
+            self._config.logs_folder
         ]
         for folder in folders:
             if folder and not os.path.exists(folder):

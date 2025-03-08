@@ -89,6 +89,12 @@ def setup_styles(config):
                        background=theme.bg,
                        foreground=theme.fg)
         
+        # Version label style
+        style.configure('Version.TLabel',
+                       font=(font_family, subtitle_font_size, 'italic'),
+                       background=theme.bg,
+                       foreground=theme.accent)
+        
         style.configure('Subtitle.TLabel',
                        font=(font_family, subtitle_font_size),
                        background=theme.bg,

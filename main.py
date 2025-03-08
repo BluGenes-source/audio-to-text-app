@@ -70,40 +70,38 @@ setup_asyncio_event_loop()
 class TextToSpeechConverter:
     def __init__(self):
         try:
-            # Set up logging first, before anything else
-            logging.basicConfig(
-                filename='text_to_speech.log',
-                level=logging.INFO,
-                format='%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s',
-                encoding='utf-8'
-            )
-            logging.info("Starting application initialization...")
-
             # Basic initialization first
             self.app_dir = os.path.dirname(os.path.abspath(__file__))
+            
+            # Initialize configuration first to get logs folder
+            try:
+                self.config = ConfigManager(self.app_dir)
+                logging.info("Configuration manager initialized successfully")
+            except Exception as config_error:
+                # If config fails, use default logs folder
+                logging.error(f"Failed to initialize ConfigManager: {config_error}")
+                raise RuntimeError(f"Configuration initialization failed: {config_error}")
+
+            # Set up logging to use config's logs folder
+            log_file = os.path.join(self.config.logs_folder, 'text_to_speech.log')
+            for handler in logging.root.handlers[:]:
+                logging.root.removeHandler(handler)
+            
+            file_handler = logging.FileHandler(log_file)
+            file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s'))
+            logging.root.addHandler(file_handler)
+            logging.root.setLevel(logging.INFO)
+            
             logging.info(f"Application directory: {self.app_dir}")
             
             # Initialize directories
             self._init_directories()
             
             # Initialize error handler before GUI
-            self.error_handler = ErrorHandler(self.app_dir)
+            self.error_handler = ErrorHandler(self.app_dir, self.config)
             sys._app_error_handler = self.error_handler
             logging.info("Error handler initialized")
             
-            # Initialize configuration
-            try:
-                self.config = ConfigManager(self.app_dir)
-                logging.info("Configuration manager initialized successfully")
-            except Exception as config_error:
-                error_details = f"Failed to initialize ConfigManager: {config_error}\n{traceback.format_exc()}"
-                logging.error(error_details)
-                self.error_handler.handle_error(config_error, {
-                    'context': 'init_config',
-                    'component': 'ConfigManager'
-                })
-                raise RuntimeError(f"Configuration initialization failed: {config_error}")
-
             # Initialize GUI components
             self._init_gui()
             
@@ -143,7 +141,7 @@ class TextToSpeechConverter:
             # Create root window with safe TkinterDnD initialization
             self.root = init_tkinter_dnd()
             self.root.withdraw()  # Hide window during initialization
-            self.root.title("Text to Speech Converter")
+            self.root.title(f"Text to Speech Converter v{self.config.version}")
             
             # Initialize status var early to prevent errors during startup
             self.status_var = tk.StringVar(value="Ready")
@@ -180,7 +178,7 @@ class TextToSpeechConverter:
         try:
             # Set up logging
             self.log_queue = queue.Queue()
-            self.logger = setup_logging(self.log_queue)
+            self.logger = setup_logging(self.log_queue, self.config)
             
             # Initialize audio processor
             ffmpeg_path = self._setup_ffmpeg()
@@ -374,10 +372,15 @@ class TextToSpeechConverter:
                               style="Title.TLabel")
         title_label.grid(row=0, column=0)
         
+        version_label = ttk.Label(title_frame,
+                                text=f"Version {self.config.version}",
+                                style="Version.TLabel")
+        version_label.grid(row=0, column=1, padx=10)
+        
         subtitle_label = ttk.Label(title_frame, 
                                  text="Convert text to speech using multiple engines",
                                  style="Subtitle.TLabel")
-        subtitle_label.grid(row=1, column=0, pady=(0, 5))
+        subtitle_label.grid(row=1, column=0, columnspan=2, pady=(0, 5))
 
     def _setup_status_bar(self):
         """Set up the status bar"""
@@ -472,8 +475,14 @@ Would you like to open the download page now?"""
 
 if __name__ == "__main__":
     try:
+        # Initialize basic config manager to get logs folder
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+        config = ConfigManager(app_dir)
+        
+        # Set up logging to the logs folder
+        log_file = os.path.join(config.logs_folder, 'text_to_speech.log')
         logging.basicConfig(
-            filename='text_to_speech.log',
+            filename=log_file,
             level=logging.INFO,
             format='%(asctime)s - %(levelname)s - %(message)s'
         )
@@ -482,6 +491,7 @@ if __name__ == "__main__":
         logging.info("Application initialized successfully")
         app.run()
     except Exception as e:
+        log_file = os.path.join(app_dir, 'logs', 'text_to_speech.log')  # Fallback to default logs folder
         logging.critical(f"CRITICAL ERROR: {e}\n{traceback.format_exc()}")
         print(f"\nCRITICAL ERROR: {e}")
         print("\nStacktrace:")
@@ -491,7 +501,7 @@ if __name__ == "__main__":
         # Try to show error dialog if possible
         try:
             messagebox.showerror("Fatal Error", 
-                               f"Failed to initialize application: {str(e)}\n\nCheck text_to_speech.log for details.")
+                               f"Failed to initialize application: {str(e)}\n\nCheck {log_file} for details.")
         except:
             pass
             
