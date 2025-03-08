@@ -41,15 +41,24 @@ class QueueManager:
         logging.info("Initializing QueueManager")
         
         # Set up logging with proper file handler
-        self.logger = logging.getLogger('QueueManager')
-        fh = logging.FileHandler('conversion_errors.log')
-        fh.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-        self.logger.addHandler(fh)
-        self.logger.setLevel(logging.INFO)
+        self._setup_logging()
         
         # Set up theme-based styles for buttons
         self.style = ttk.Style()
         self.setup_theme_styles()
+
+    def _setup_logging(self):
+        """Set up logging for conversion errors"""
+        logs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'logs')
+        os.makedirs(logs_dir, exist_ok=True)
+        
+        self.logger = logging.getLogger('QueueManager')
+        self.logger.setLevel(logging.ERROR)
+        
+        fh = logging.FileHandler(os.path.join(logs_dir, 'conversion_errors.log'))
+        fh.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+        self.logger.addHandler(fh)
+        self.logger.setLevel(logging.INFO)
 
     def setup_theme_styles(self):
         """Set up theme-specific styles for queue buttons"""
@@ -66,6 +75,17 @@ class QueueManager:
                            background='gray75')
         self.style.configure('Queue.Process.Ready.TButton',
                            background='green')
+                           
+        # Make sure styles have valid foreground/background colors for all states
+        self.style.map('Queue.Control.TButton',
+                    background=[('active', 'lightblue'),
+                               ('disabled', 'gray75')],
+                    foreground=[('disabled', 'gray50')])
+            
+        self.style.map('Queue.Process.TButton',
+                    background=[('active', 'lightblue'),
+                               ('disabled', 'gray75')],
+                    foreground=[('disabled', 'gray50')])
 
     def setup_queue_ui(self, frame, process_next_callback, update_queue_button_state_callback):
         """Set up the queue UI elements"""
@@ -232,13 +252,21 @@ class QueueManager:
     def start_file_conversion(self, file_path):
         """Start conversion of a single file"""
         try:
+            # Get or create event loop
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                # Create a new event loop if there isn't one
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
             # Start async conversion
             asyncio.run_coroutine_threadsafe(
                 self.audio_processor.convert_audio_to_text_async(
                     file_path,
                     lambda msg: self.terminal_callback(f"{os.path.basename(file_path)}: {msg}")
                 ),
-                asyncio.get_event_loop()
+                loop
             ).add_done_callback(lambda future: self.handle_conversion_result(future, file_path))
             
         except Exception as e:

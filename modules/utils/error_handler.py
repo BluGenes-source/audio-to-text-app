@@ -28,15 +28,19 @@ class RetryConfig:
         self.exceptions = exceptions
 
 class ErrorTracker:
-    def __init__(self, log_dir: str):
-        self.log_dir = log_dir
+    def __init__(self, config=None):
+        # Use config's logs folder if provided, otherwise fall back to default
+        if config and hasattr(config, 'logs_folder'):
+            self.logs_dir = config.logs_folder
+        else:
+            self.logs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'logs')
         self.errors: Dict[str, ErrorContext] = {}
         self._setup_logging()
 
     def _setup_logging(self):
         """Set up error logging"""
-        os.makedirs(self.log_dir, exist_ok=True)
-        self.error_log = os.path.join(self.log_dir, "error_log.txt")
+        os.makedirs(self.logs_dir, exist_ok=True)
+        self.error_log = os.path.join(self.logs_dir, "error_log.txt")
 
     def log_error(self, context: ErrorContext):
         """Log an error with its context"""
@@ -89,8 +93,8 @@ def with_retry(retry_config: RetryConfig = None):
     return decorator
 
 class ErrorHandler:
-    def __init__(self, app_dir: str):
-        self.tracker = ErrorTracker(app_dir)
+    def __init__(self, app_dir: str, config=None):
+        self.tracker = ErrorTracker(config)
         self.default_retry_config = RetryConfig()
 
     def handle_error(self, error: Exception, context: Dict[str, Any] = None) -> ErrorContext:

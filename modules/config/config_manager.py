@@ -6,6 +6,10 @@ from typing import Optional
 
 @dataclass
 class Config:
+    # Version info
+    version: str = "1.0.0"
+    build_number: int = 1
+    
     # Window settings
     window_width: int = 1000
     window_height: int = 700
@@ -45,16 +49,204 @@ class Config:
     transcribes_folder: str = ""
     dialogs_folder: str = ""
     output_folder: str = ""
+    logs_folder: str = ""  # Added logs folder
 
 class ConfigManager:
     def __init__(self, app_dir: str):
         self.app_dir = app_dir
         self.config_file = os.path.join(app_dir, 'config.json')
+        # Initialize config before setting attributes to avoid initialization errors
+        self._config = None
         self._config = self._load_config()
         # Ensure folders are set
         self._ensure_folders_exist()
         logging.info(f"Configuration loaded from {self.config_file}")
+    
+    # Explicitly define properties for all Config attributes to ensure proper access
+    @property
+    def theme(self):
+        return self._config.theme
+    
+    @theme.setter
+    def theme(self, value):
+        self._config.theme = value
+    
+    @property
+    def font_family(self):
+        return self._config.font_family
+    
+    @font_family.setter
+    def font_family(self, value):
+        self._config.font_family = value
+    
+    @property
+    def accent_color(self):
+        return self._config.accent_color
+    
+    @accent_color.setter
+    def accent_color(self, value):
+        self._config.accent_color = value
+    
+    @property
+    def text_color(self):
+        return self._config.text_color
+    
+    @text_color.setter
+    def text_color(self, value):
+        self._config.text_color = value
+    
+    @property
+    def bg_color(self):
+        return self._config.bg_color
+    
+    @bg_color.setter
+    def bg_color(self, value):
+        self._config.bg_color = value
+    
+    @property
+    def button_inactive_color(self):
+        return self._config.button_inactive_color
+    
+    @button_inactive_color.setter
+    def button_inactive_color(self, value):
+        self._config.button_inactive_color = value
+    
+    @property
+    def button_ready_color(self):
+        return self._config.button_ready_color
+    
+    @button_ready_color.setter
+    def button_ready_color(self, value):
+        self._config.button_ready_color = value
+    
+    @property
+    def button_success_color(self):
+        return self._config.button_success_color
+    
+    @button_success_color.setter
+    def button_success_color(self, value):
+        self._config.button_success_color = value
+    
+    @property
+    def disabled_color(self):
+        return self._config.disabled_color
         
+    @disabled_color.setter
+    def disabled_color(self, value):
+        self._config.disabled_color = value
+    
+    @property
+    def title_font_size(self):
+        return self._config.title_font_size
+    
+    @title_font_size.setter
+    def title_font_size(self, value):
+        self._config.title_font_size = value
+    
+    @property
+    def subtitle_font_size(self):
+        return self._config.subtitle_font_size
+    
+    @subtitle_font_size.setter
+    def subtitle_font_size(self, value):
+        self._config.subtitle_font_size = value
+    
+    @property
+    def text_font_size(self):
+        return self._config.text_font_size
+    
+    @text_font_size.setter
+    def text_font_size(self, value):
+        self._config.text_font_size = value
+    
+    @property
+    def font_size(self):
+        return self._config.font_size
+    
+    @font_size.setter
+    def font_size(self, value):
+        self._config.font_size = value
+    
+    @property
+    def input_folder(self):
+        return self._config.input_folder
+    
+    @input_folder.setter
+    def input_folder(self, value):
+        self._config.input_folder = value
+    
+    @property
+    def transcribes_folder(self):
+        return self._config.transcribes_folder
+    
+    @transcribes_folder.setter
+    def transcribes_folder(self, value):
+        self._config.transcribes_folder = value
+    
+    @property
+    def dialogs_folder(self):
+        return self._config.dialogs_folder
+    
+    @dialogs_folder.setter
+    def dialogs_folder(self, value):
+        self._config.dialogs_folder = value
+    
+    @property
+    def output_folder(self):
+        return self._config.output_folder
+    
+    @output_folder.setter
+    def output_folder(self, value):
+        self._config.output_folder = value
+    
+    @property
+    def window_width(self):
+        return self._config.window_width
+    
+    @window_width.setter
+    def window_width(self, value):
+        self._config.window_width = value
+    
+    @property
+    def window_height(self):
+        return self._config.window_height
+    
+    @window_height.setter
+    def window_height(self, value):
+        self._config.window_height = value
+    
+    @property
+    def window_x(self):
+        return self._config.window_x
+    
+    @window_x.setter
+    def window_x(self, value):
+        self._config.window_x = value
+    
+    @property
+    def window_y(self):
+        return self._config.window_y
+    
+    @window_y.setter
+    def window_y(self, value):
+        self._config.window_y = value
+    
+    @property
+    def queue_delay(self):
+        return self._config.queue_delay
+    
+    @queue_delay.setter
+    def queue_delay(self, value):
+        self._config.queue_delay = value
+    
+    @property
+    def logs_folder(self):
+        return self._config.logs_folder
+    
+    @logs_folder.setter
+    def logs_folder(self, value):
+        self._config.logs_folder = value
+    
     def _load_config(self) -> Config:
         """Load configuration from file or create default"""
         try:
@@ -95,6 +287,8 @@ class ConfigManager:
             config.dialogs_folder = os.path.join(self.app_dir, "Dialogs")
         if not config.output_folder:
             config.output_folder = os.path.join(self.app_dir, "output")
+        if not config.logs_folder:
+            config.logs_folder = os.path.join(self.app_dir, "logs")
         
     def _ensure_folders_exist(self):
         """Ensure all required folders exist"""
@@ -102,7 +296,8 @@ class ConfigManager:
             self._config.input_folder,
             self._config.transcribes_folder,
             self._config.dialogs_folder,
-            self._config.output_folder
+            self._config.output_folder,
+            self._config.logs_folder
         ]
         for folder in folders:
             if folder and not os.path.exists(folder):
@@ -123,23 +318,3 @@ class ConfigManager:
                 logging.debug(f"Configuration saved to {self.config_file}")
         except Exception as e:
             logging.error(f"Error saving config: {e}")
-            
-    def __getattr__(self, name):
-        """Allow direct access to config properties"""
-        if hasattr(self._config, name):
-            return getattr(self._config, name)
-        raise AttributeError(f"'ConfigManager' has no attribute '{name}'")
-        
-    def __setattr__(self, name, value):
-        """Allow setting config properties directly"""
-        # Special handling for our own attributes
-        if name in ['app_dir', 'config_file', '_config']:
-            super().__setattr__(name, value)
-        # Handle Config attributes
-        elif hasattr(Config, name) or (hasattr(self, '_config') and hasattr(self._config, name)):
-            if not hasattr(self, '_config'):
-                super().__setattr__('_config', Config())
-            setattr(self._config, name, value)
-        # Default handling for other attributes
-        else:
-            super().__setattr__(name, value)

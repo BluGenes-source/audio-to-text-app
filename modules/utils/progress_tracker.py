@@ -16,29 +16,35 @@ class TaskStatus(Enum):
 
 @dataclass
 class TaskProgress:
-    """Data class to hold task progress information"""
     task_id: str
     status: TaskStatus = TaskStatus.PENDING
     progress: float = 0.0
     message: str = ""
+    start_time: datetime = None
+    end_time: datetime = None
     context: Dict[str, Any] = None
-    timestamp: str = None
     
     def __post_init__(self):
+        if self.start_time is None:
+            self.start_time = datetime.now()
         if self.context is None:
             self.context = {}
-        if self.timestamp is None:
-            self.timestamp = datetime.now().isoformat()
     
     def to_dict(self) -> Dict[str, Any]:
-        result = asdict(self)
-        result['status'] = self.status.name
-        return result
+        data = asdict(self)
+        data['status'] = self.status.name
+        data['start_time'] = self.start_time.isoformat() if self.start_time else None
+        data['end_time'] = self.end_time.isoformat() if self.end_time else None
+        return data
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'TaskProgress':
         if 'status' in data and isinstance(data['status'], str):
             data['status'] = TaskStatus[data['status']]
+        if 'start_time' in data and data['start_time'] and isinstance(data['start_time'], str):
+            data['start_time'] = datetime.fromisoformat(data['start_time'])
+        if 'end_time' in data and data['end_time'] and isinstance(data['end_time'], str):
+            data['end_time'] = datetime.fromisoformat(data['end_time'])
         return cls(**data)
 
 
@@ -59,7 +65,7 @@ class AsyncProgressTracker:
             self.tasks[task_id] = TaskProgress(
                 task_id=task_id,
                 context=context,
-                timestamp=datetime.now().isoformat()
+                start_time=datetime.now()
             )
             await self._save_progress()
     
@@ -72,7 +78,7 @@ class AsyncProgressTracker:
                 task.progress = progress
                 task.message = message
                 task.status = status
-                task.timestamp = datetime.now().isoformat()
+                task.end_time = datetime.now() if status in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED] else None
                 await self._save_progress()
     
     async def get_task_context(self, task_id: str) -> Optional[Dict[str, Any]]:
