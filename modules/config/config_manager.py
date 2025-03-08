@@ -123,6 +123,14 @@ class ConfigManager:
         self._config.button_success_color = value
     
     @property
+    def disabled_color(self):
+        return self._config.disabled_color
+        
+    @disabled_color.setter
+    def disabled_color(self, value):
+        self._config.disabled_color = value
+    
+    @property
     def title_font_size(self):
         return self._config.title_font_size
     

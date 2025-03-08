@@ -26,7 +26,6 @@ from modules.utils.error_handler import ErrorHandler, with_retry, RetryConfig
 from modules.gui import setup_styles, AppDimensions
 from modules.gui.text_to_speech_tab import TextToSpeechTab
 from modules.gui.settings_tab import SettingsTab
-from modules.gui.tabs import SpeechToTextTab
 
 def show_error_and_exit(error_type, value, tb):
     """Global error handler to show error dialog and exit gracefully"""
@@ -50,13 +49,17 @@ def show_error_and_exit(error_type, value, tb):
 # Create a new asyncio event loop for the main thread
 def setup_asyncio_event_loop():
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_closed():
+        # Use the new recommended approach to get or create event loops
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # If no running loop, create a new one
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
         return loop
-    except RuntimeError:
-        # No event loop exists in this thread
+    except Exception as e:
+        logging.error(f"Error setting up asyncio event loop: {e}")
+        # Fallback to new event loop
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         return loop
@@ -64,12 +67,12 @@ def setup_asyncio_event_loop():
 # Initialize asyncio for tkinter
 setup_asyncio_event_loop()
 
-class AudioToTextConverter:
+class TextToSpeechConverter:
     def __init__(self):
         try:
             # Set up logging first, before anything else
             logging.basicConfig(
-                filename='audio_converter.log',
+                filename='text_to_speech.log',
                 level=logging.INFO,
                 format='%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s',
                 encoding='utf-8'
@@ -123,11 +126,11 @@ class AudioToTextConverter:
     def _init_directories(self):
         """Initialize required directories"""
         try:
-            self.dialogs_folder = os.path.join(self.app_dir, "Dialogs")
-            self.transcribes_folder = os.path.join(self.app_dir, "Transcribes")
+            # We only need the output and audio output folders now
             self.output_folder = os.path.join(self.app_dir, "output")
+            self.audio_output_folder = os.path.join(self.app_dir, "Audio-Output")
             
-            for folder in [self.dialogs_folder, self.transcribes_folder, self.output_folder]:
+            for folder in [self.output_folder, self.audio_output_folder]:
                 os.makedirs(folder, exist_ok=True)
             logging.info("Created required directories")
         except Exception as e:
@@ -140,7 +143,10 @@ class AudioToTextConverter:
             # Create root window with safe TkinterDnD initialization
             self.root = init_tkinter_dnd()
             self.root.withdraw()  # Hide window during initialization
-            self.root.title("Audio/Text Converter")
+            self.root.title("Text to Speech Converter")
+            
+            # Initialize status var early to prevent errors during startup
+            self.status_var = tk.StringVar(value="Ready")
             
             # Basic configuration to prevent early theme errors
             self.style = ttk.Style()
@@ -255,12 +261,15 @@ class AudioToTextConverter:
         except Exception as e:
             print(f"Error during shutdown: {e}")
         finally:
-            # Destroy the window and exit
+            # Safely destroy the window and exit
             try:
-                self.root.quit()
-                self.root.destroy()
+                # Check if root window still exists and is not in destroyed state
+                if hasattr(self, 'root') and self.root and self.root.winfo_exists():
+                    self.root.quit()
+                    self.root.destroy()
             except Exception as e:
-                print(f"Error destroying window: {e}")
+                # Suppress errors during final cleanup
+                pass
             sys.exit(0)
 
     def setup_styles(self):
@@ -311,33 +320,27 @@ class AudioToTextConverter:
         
         # Create tabs
         try:
+            # Text to Speech tab is now the main tab
+            self.tts_frame = ttk.Frame(self.notebook)
             self.tts_tab = TextToSpeechTab(
-                ttk.Frame(self.notebook),
+                self.tts_frame,
                 self.config,
                 self.audio_processor,
                 self._update_status,
                 self.root
             )
-            self.stt_tab = SpeechToTextTab(
-                ttk.Frame(self.notebook),
-                self.config,
-                self.audio_processor,
-                self._append_terminal,
-                self.root
-            )
+            
+            # Settings tab remains
+            self.settings_frame = ttk.Frame(self.notebook)
             self.settings_tab = SettingsTab(
-                ttk.Frame(self.notebook),
+                self.settings_frame,
                 self.config,
                 self.update_styles
             )
 
-            # Connect STT tab to TTS tab
-            self.stt_tab.tts_tab = self.tts_tab
-            
             # Add tabs to notebook
-            self.notebook.add(self.stt_tab.parent, text="Speech to Text")
-            self.notebook.add(self.tts_tab.parent, text="Text to Speech")
-            self.notebook.add(self.settings_tab.parent, text="Settings")
+            self.notebook.add(self.tts_frame, text="Text to Speech")
+            self.notebook.add(self.settings_frame, text="Settings")
         except Exception as e:
             logging.critical(f"Failed to create tabs: {e}")
             raise
@@ -367,12 +370,12 @@ class AudioToTextConverter:
         title_frame.grid(row=0, column=0, columnspan=2, pady=(0, 15), sticky="ew")
         title_frame.columnconfigure(0, weight=1)
         
-        title_label = ttk.Label(title_frame, text="Audio/Text Converter", 
+        title_label = ttk.Label(title_frame, text="Text to Speech Converter", 
                               style="Title.TLabel")
         title_label.grid(row=0, column=0)
         
         subtitle_label = ttk.Label(title_frame, 
-                                 text="Convert between audio and text using speech recognition",
+                                 text="Convert text to speech using multiple engines",
                                  style="Subtitle.TLabel")
         subtitle_label.grid(row=1, column=0, pady=(0, 5))
 
@@ -394,16 +397,9 @@ class AudioToTextConverter:
         except Exception as e:
             logging.error(f"Error updating status: {e}")
 
-    def _append_terminal(self, message):
-        """Append message to terminal area"""
-        try:
-            terminal = self.stt_tab.terminal_area
-            terminal.configure(state='normal')
-            terminal.insert(tk.END, message + '\n')
-            terminal.see(tk.END)
-            terminal.configure(state='disabled')
-        except Exception as e:
-            logging.error(f"Error appending to terminal: {e}")
+    def _log_message(self, message):
+        """Log a message to the application log"""
+        logging.info(message)
 
     def check_log_queue(self):
         """Check for new log messages"""
@@ -411,7 +407,8 @@ class AudioToTextConverter:
             while True:
                 try:
                     record = self.log_queue.get_nowait()
-                    self._append_terminal(record)
+                    # Log to the status bar for important messages
+                    self._update_status(record)
                 except queue.Empty:
                     break
             self.root.after(100, self.check_log_queue)
@@ -476,12 +473,12 @@ Would you like to open the download page now?"""
 if __name__ == "__main__":
     try:
         logging.basicConfig(
-            filename='audio_converter.log',
+            filename='text_to_speech.log',
             level=logging.INFO,
             format='%(asctime)s - %(levelname)s - %(message)s'
         )
         logging.info("Starting application initialization...")
-        app = AudioToTextConverter()
+        app = TextToSpeechConverter()
         logging.info("Application initialized successfully")
         app.run()
     except Exception as e:
@@ -494,7 +491,7 @@ if __name__ == "__main__":
         # Try to show error dialog if possible
         try:
             messagebox.showerror("Fatal Error", 
-                               f"Failed to initialize application: {str(e)}\n\nCheck audio_converter.log for details.")
+                               f"Failed to initialize application: {str(e)}\n\nCheck text_to_speech.log for details.")
         except:
             pass
             
