@@ -125,6 +125,31 @@ class AudioProcessor:
         self._thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=3)
         self._conversion_cache = {}
         
+        # TTS engine configuration
+        self.current_tts_engine = "google"  # Default to Google TTS
+        self.current_local_voice = None
+        self.current_hf_model = None
+        self.current_language = "en"  # Default language
+        
+        # HuggingFace specific attributes - initialize with defaults to prevent attribute errors
+        self.hf_default_models = [  # Default models to recommend
+            {"id": "microsoft/speecht5_tts", "name": "SpeechT5 TTS"},
+            {"id": "facebook/mms-tts-eng", "name": "MMS TTS English"},
+            {"id": "espnet/kan-bayashi_ljspeech_vits", "name": "LJSpeech VITS"}
+        ]
+        self.hf_recommended_models = self.hf_default_models.copy()  # Initialize with defaults
+        self.hf_voice_options = []  # Store available HuggingFace voices
+        self.hf_speaker_id = None  # For models that support multiple speakers
+        self.hf_vocoder = None  # Current vocoder model
+        self.hf_language_code = "en"  # Default language for HuggingFace models
+        self.hf_model_options = {  # Model-specific options
+            "temperature": 1.0,
+            "speed": 1.0,
+            "use_cache": True
+        }
+        self.hf_download_path = None  # Custom download path for models
+        self.hf_model_loaded = False  # Track if a model is loaded
+        
         # Get FFmpeg path and ensure it's set
         self.ffmpeg_path = find_ffmpeg()
         if self.ffmpeg_path:
@@ -135,12 +160,12 @@ class AudioProcessor:
             os.environ['FFMPEG_BINARY'] = self.ffmpeg_path
 
         # Initialize Hugging Face model manager
-        models_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "Models")
-        self.hf_manager = HuggingFaceModelManager(models_dir)
-        self._hf_initialized = False
-        
-        # Run initial async initialization
         try:
+            models_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "Models")
+            self.hf_manager = HuggingFaceModelManager(models_dir)
+            self._hf_initialized = False
+            
+            # Run initial async initialization
             import asyncio
             try:
                 loop = asyncio.get_event_loop()
@@ -152,9 +177,15 @@ class AudioProcessor:
             if loop.is_running():
                 asyncio.create_task(self._init_hf_async())
             else:
-                loop.run_until_complete(self._init_hf_async())
+                try:
+                    loop.run_until_complete(self._init_hf_async())
+                except Exception as e:
+                    # Don't let initialization errors crash the application
+                    logging.error(f"Error during HuggingFace initialization (will continue with defaults): {e}")
+                    self._hf_initialized = False
+                    # Still have default models available
         except Exception as e:
-            logging.error(f"Failed to initialize Hugging Face models: {e}")
+            logging.error(f"Failed to initialize Hugging Face model manager (will continue with defaults): {e}")
             self._hf_initialized = False
             self.hf_manager = None
 
@@ -163,10 +194,47 @@ class AudioProcessor:
         try:
             await self.hf_manager.initialize()
             self._hf_initialized = True
+            # Load recommended models
+            self.hf_recommended_models = self.hf_manager.get_recommended_models()
+            # Populate available voices
+            self.hf_voice_options = await self.hf_manager.get_available_voices()
         except Exception as e:
             logging.error(f"Failed to initialize Hugging Face models: {e}")
             self._hf_initialized = False
-            self.hf_manager = None
+            # Continue with default values for models and voices
+
+    async def get_huggingface_voices(self) -> List[Dict[str, Any]]:
+        """Get available Hugging Face TTS models"""
+        # Don't try to initialize if hf_manager is None (initialization failed)
+        if self.hf_manager is None:
+            return []
+            
+        if not self._hf_initialized:
+            try:
+                await self.hf_manager.initialize()
+                self._hf_initialized = True
+                self.hf_voice_options = await self.hf_manager.get_available_voices()
+            except Exception as e:
+                logging.error(f"Error getting HuggingFace voices: {e}")
+                return []
+        
+        return self.hf_voice_options
+    
+    def get_huggingface_recommended_models(self) -> List[Dict[str, str]]:
+        """Get recommended Hugging Face models for download"""
+        try:
+            # If manager isn't initialized or doesn't exist, return default models
+            if not self.hf_manager or not self._hf_initialized:
+                return self.hf_default_models
+            
+            # Always keep a copy of default models in case of error
+            models = self.hf_manager.get_recommended_models()
+            if models:  # Only update if we got actual models
+                self.hf_recommended_models = models
+            return self.hf_recommended_models
+        except Exception as e:
+            logging.error(f"Error getting recommended models: {e}")
+            return self.hf_default_models
 
     def initialize_pygame(self):
         """Initialize pygame mixer for audio playback"""
@@ -307,10 +375,15 @@ class AudioProcessor:
                     
                     # For SpeechT5 models, also load the vocoder if needed
                     if "speecht5" in model_id and not self.hf_manager.vocoder_model:
-                        await self.hf_manager.load_vocoder(None, progress_callback)
+                        await self.hf_manager.load_vocoder(self.hf_vocoder, progress_callback)
                 
                 # Convert text to speech using Hugging Face
-                return await self.hf_manager.text_to_speech(text, output_path, None, progress_callback)
+                return await self.hf_manager.text_to_speech(
+                    text, 
+                    output_path, 
+                    self.hf_speaker_id,  # Pass speaker ID for multi-speaker models
+                    progress_callback
+                )
             
             else:
                 # Use standard implementation for other engine types
@@ -367,21 +440,36 @@ class AudioProcessor:
 
     async def get_huggingface_voices(self) -> List[Dict[str, Any]]:
         """Get available Hugging Face TTS models"""
+        # Don't try to initialize if hf_manager is None (initialization failed)
+        if self.hf_manager is None:
+            return []
+            
         if not self._hf_initialized:
-            await self.hf_manager.initialize()
-            self._hf_initialized = True
+            try:
+                await self.hf_manager.initialize()
+                self._hf_initialized = True
+                self.hf_voice_options = await self.hf_manager.get_available_voices()
+            except Exception as e:
+                logging.error(f"Error getting HuggingFace voices: {e}")
+                return []
         
-        return await self.hf_manager.get_available_voices()
+        return self.hf_voice_options
     
     def get_huggingface_recommended_models(self) -> List[Dict[str, str]]:
         """Get recommended Hugging Face models for download"""
         try:
+            # If manager isn't initialized or doesn't exist, return default models
             if not self.hf_manager or not self._hf_initialized:
-                return []
-            return self.hf_manager.get_recommended_models()
+                return self.hf_default_models
+            
+            # Always keep a copy of default models in case of error
+            models = self.hf_manager.get_recommended_models()
+            if models:  # Only update if we got actual models
+                self.hf_recommended_models = models
+            return self.hf_recommended_models
         except Exception as e:
             logging.error(f"Error getting recommended models: {e}")
-            return []
+            return self.hf_default_models
 
     def set_tts_engine(self, engine_type: str):
         """Set the TTS engine type (google, local, huggingface)"""
@@ -394,10 +482,26 @@ class AudioProcessor:
         """Set the current Hugging Face model ID"""
         self.current_hf_model = model_id
         return True
+    
+    def set_huggingface_speaker(self, speaker_id: Optional[str] = None):
+        """Set the speaker ID for multi-speaker HuggingFace models"""
+        self.hf_speaker_id = speaker_id
+        return True
+    
+    def set_huggingface_vocoder(self, vocoder_id: Optional[str] = None):
+        """Set the vocoder model for HuggingFace TTS"""
+        self.hf_vocoder = vocoder_id
+        return True
+    
+    def set_huggingface_language(self, language_code: str = "en"):
+        """Set the language for multilingual HuggingFace models"""
+        self.hf_language_code = language_code
+        return True
         
-    def set_local_voice(self, voice_name: str):
-        """Set the local TTS voice"""
-        self.current_local_voice = voice_name
+    def set_huggingface_options(self, options: Dict[str, Any]):
+        """Set model-specific options for HuggingFace models"""
+        if options:
+            self.hf_model_options.update(options)
         return True
 
     def cleanup(self):
