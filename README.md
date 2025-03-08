@@ -1,8 +1,20 @@
-# Audio/Text Converter Application
-A Python desktop application for converting between audio and text, featuring both speech-to-text and text-to-speech capabilities.
+# Text-to-Speech Converter Application (v1.1.0)
+A Python desktop application for converting text to speech with multiple engine options.
 
-## What's New
-- Added Hugging Face model integration for text-to-speech
+## What's New in v1.1.0
+- Improved asyncio integration for better performance and stability
+- Enhanced error handling and recovery mechanisms
+- Added proper window geometry management and position saving
+- Optimized application startup and shutdown sequences
+- Fixed FFmpeg detection and installation instructions
+- Improved logging system with better error diagnostics
+- Updated user interface with more consistent styling
+- Better handling of background tasks and resource cleanup
+
+## What's New in v1.0.0
+- Added version number display in application title and UI
+- Streamlined application focused solely on text-to-speech functionality
+- Added Hugging Face model integration for advanced AI-powered speech synthesis
 - Fixed configuration attribute errors
 - Improved error handling and logging
 - Enhanced queue management system
@@ -105,57 +117,6 @@ A Python desktop application for converting between audio and text, featuring bo
 4. Window Position Reset:
    - If the application starts in an unexpected position, try deleting the config.json file
    - This will reset all settings to defaults including window position
-
-## Module Architecture
-Below is a diagram showing the dependencies between the main modules in the application:
-
-```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'fontSize': '16px', 'fontFamily': 'arial', 'lineColor': 'white', 'edgeLabelBackground': 'transparent' }}}%%
-graph TD
-    %% Main module relationships with color coding
-    main[main.py] -- initializes --> gui[modules/gui]:::coreModule
-    main -- loads --> config[modules/config]:::configModule
-    gui -- processes audio --> audio[modules/audio]:::audioModule
-    gui -- uses utilities --> utils[modules/utils]:::utilsModule
-    gui -- reads settings --> config
-    audio -- error handling --> utils
-    audio -- reads settings --> config
-    
-    %% Detailed submodules
-    %% GUI submodules
-    gui -- includes --> gui_player[gui/audio_player.py]:::guiComponent
-    gui -- includes --> gui_conversion[gui/conversion_handler.py]:::guiComponent
-    gui -- includes --> gui_queue[gui/queue_manager.py]:::guiComponent
-    gui -- includes --> gui_settings[gui/settings_tab.py]:::guiComponent
-    gui -- includes --> gui_tts[gui/text_to_speech_tab.py]:::guiComponent
-    
-    %% Audio submodules
-    audio -- includes --> audio_processor[audio/audio_processor.py]:::audioComponent
-    audio -- includes --> huggingface[audio/huggingface_models.py]:::audioComponent
-    
-    %% Utils submodules
-    utils -- includes --> error_handler[utils/error_handler.py]:::utilsComponent
-    utils -- includes --> logging[utils/logging_utils.py]:::utilsComponent
-    utils -- includes --> progress[utils/progress_tracker.py]:::utilsComponent
-    utils -- includes --> task_manager[utils/task_manager.py]:::utilsComponent
-    
-    %% Config submodule
-    config -- includes --> config_manager[config/config_manager.py]:::configComponent
-    
-    %% Define styles for different module types
-    classDef coreModule fill:#f96,stroke:#333,stroke-width:2px
-    classDef configModule fill:#9cf,stroke:#333,stroke-width:2px
-    classDef audioModule fill:#f9c,stroke:#333,stroke-width:2px
-    classDef utilsModule fill:#9f9,stroke:#333,stroke-width:2px
-    
-    classDef guiComponent fill:#fa8,stroke:#333,stroke-width:1px
-    classDef audioComponent fill:#fad,stroke:#333,stroke-width:1px
-    classDef utilsComponent fill:#afa,stroke:#333,stroke-width:1px
-    classDef configComponent fill:#adf,stroke:#333,stroke-width:1px
-    
-    %% Define the edge/link style to be white
-    linkStyle default stroke:white,stroke-width:1.5px;
-```
 
 ## Module Architecture
 Below is a diagram showing the dependencies between the main modules in the application:
