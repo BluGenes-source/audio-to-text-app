@@ -1,4 +1,6 @@
 {
+    "version": "1.0.0",
+    "build_number": 1,
     "window_width": 1000,
     "window_height": 813,
     "window_x": 414,
@@ -26,5 +28,6 @@
     "input_folder": "j:\\Dev\\Python\\TTS_Local\\audio-to-text-app\\Audio-Input",
     "transcribes_folder": "j:\\Dev\\Python\\TTS_Local\\audio-to-text-app\\Transcribes",
     "dialogs_folder": "j:\\Dev\\Python\\TTS_Local\\audio-to-text-app\\Dialogs",
-    "output_folder": "j:\\Dev\\Python\\TTS_Local\\audio-to-text-app\\output"
+    "output_folder": "j:\\Dev\\Python\\TTS_Local\\audio-to-text-app\\output",
+    "logs_folder": "j:\\Dev\\Python\\TTS_Local\\audio-to-text-app\\logs"
 }

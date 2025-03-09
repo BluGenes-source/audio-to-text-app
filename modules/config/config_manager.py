@@ -64,6 +64,22 @@ class ConfigManager:
     
     # Explicitly define properties for all Config attributes to ensure proper access
     @property
+    def version(self):
+        return self._config.version
+    
+    @version.setter
+    def version(self, value):
+        self._config.version = value
+        
+    @property
+    def build_number(self):
+        return self._config.build_number
+    
+    @build_number.setter
+    def build_number(self, value):
+        self._config.build_number = value
+    
+    @property
     def theme(self):
         return self._config.theme
     
