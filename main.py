@@ -21,7 +21,7 @@ def init_tkinter_dnd():
 
 from modules.config import ConfigManager
 from modules.audio import AudioProcessor, find_ffmpeg
-from modules.utils import setup_logging
+from modules.utils.logging_utils import setup_logging  # Updated import to use explicit path
 from modules.utils.error_handler import ErrorHandler, with_retry, RetryConfig
 from modules.gui import setup_styles, AppDimensions
 from modules.gui.text_to_speech_tab import TextToSpeechTab
