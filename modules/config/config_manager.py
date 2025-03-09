@@ -7,7 +7,7 @@ from typing import Optional
 @dataclass
 class Config:
     # Version info
-    version: str = "1.0.0"
+    version: str = "1.1.1"
     build_number: int = 1
     
     # Window settings

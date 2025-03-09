@@ -1,5 +1,12 @@
-# Text-to-Speech Converter Application (v1.1.0)
+# Text-to-Speech Converter Application (v1.1.1)
 A Python desktop application for converting text to speech with multiple engine options.
+
+## What's New in v1.1.1
+- Fixed missing 'version' property in ConfigManager class
+- Corrected setup_logging import path for better module resolution
+- Fixed parameter handling in logging setup
+- Improved module import structure for better reliability
+- Enhanced exception handling during initialization
 
 ## What's New in v1.1.0
 - Improved asyncio integration for better performance and stability

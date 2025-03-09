@@ -141,7 +141,7 @@ class TextToSpeechConverter:
             # Create root window with safe TkinterDnD initialization
             self.root = init_tkinter_dnd()
             self.root.withdraw()  # Hide window during initialization
-            self.root.title(f"Text to Speech Converter v{self.config.version}")
+            self.root.title(f"Text to Speech Converter v{self.config.version} (Build {self.config.build_number})")
             
             # Initialize status var early to prevent errors during startup
             self.status_var = tk.StringVar(value="Ready")
@@ -373,7 +373,7 @@ class TextToSpeechConverter:
         title_label.grid(row=0, column=0)
         
         version_label = ttk.Label(title_frame,
-                                text=f"Version {self.config.version}",
+                                text=f"Version {self.config.version} (Build {self.config.build_number})",
                                 style="Version.TLabel")
         version_label.grid(row=0, column=1, padx=10)
         
