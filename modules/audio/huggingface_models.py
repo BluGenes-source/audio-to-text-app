@@ -6,8 +6,6 @@ import tempfile
 from pathlib import Path
 from typing import Optional, List, Dict, Any, Callable, Tuple
 from transformers import AutoProcessor, AutoModel, pipeline
-from huggingface_hub import hf_hub_download, snapshot_download
-from huggingface_hub.utils import HfHubHTTPError
 
 class HuggingFaceModelManager:
     """Manager class for handling Hugging Face models for text-to-speech"""
@@ -15,8 +13,8 @@ class HuggingFaceModelManager:
     # Default models to recommend for first-time setup
     DEFAULT_TTS_MODELS = [
         {"id": "microsoft/speecht5_tts", "name": "SpeechT5 TTS"},
-        {"id": "facebook/mms-tts-eng", "name": "MMS TTS English"},
-        {"id": "espnet/kan-bayashi_ljspeech_vits", "name": "LJSpeech VITS"}
+        {"id": "espnet/kan-bayashi_ljspeech_vits", "name": "LJSpeech VITS"},
+        {"id": "suno/bark-small", "name": "Bark Small"}
     ]
     
     # Default vocoder model (used with some TTS models)
@@ -76,6 +74,7 @@ class HuggingFaceModelManager:
         if not self.models_dir.exists():
             return
         
+        # First, look for models directly in the models directory
         for item in self.models_dir.iterdir():
             if not item.is_dir():
                 continue
@@ -84,7 +83,18 @@ class HuggingFaceModelManager:
             config_path = item.joinpath("config.json")
             if config_path.exists():
                 try:
+                    # Try to identify the model - it could be just the model name without organization
                     model_id = item.name
+                    
+                    # Look for a .model_info file that might contain the full model ID
+                    model_info_path = item.joinpath(".model_info")
+                    if model_info_path.exists():
+                        try:
+                            with open(model_info_path, "r") as f:
+                                model_id = f.read().strip()
+                        except:
+                            pass
+                    
                     self.available_models[model_id] = {
                         "name": model_id,
                         "path": str(item),
@@ -94,6 +104,32 @@ class HuggingFaceModelManager:
                     logging.info(f"Found local model: {model_id}")
                 except Exception as e:
                     logging.warning(f"Error processing model {item}: {e}")
+        
+        # Then check for organization folders which may contain model subfolders
+        for org_dir in self.models_dir.iterdir():
+            if not org_dir.is_dir():
+                continue
+                
+            for model_dir in org_dir.iterdir():
+                if not model_dir.is_dir():
+                    continue
+                    
+                # Check if this is a valid model directory
+                config_path = model_dir.joinpath("config.json")
+                if config_path.exists():
+                    try:
+                        # This is the organization/model_name format
+                        model_id = f"{org_dir.name}/{model_dir.name}"
+                        
+                        self.available_models[model_id] = {
+                            "name": model_id,
+                            "path": str(model_dir),
+                            "type": self._determine_model_type(model_dir),
+                            "is_local": True
+                        }
+                        logging.info(f"Found local model with organization: {model_id}")
+                    except Exception as e:
+                        logging.warning(f"Error processing model {model_dir}: {e}")
     
     def _determine_model_type(self, model_path: Path) -> str:
         """Determine the type of model from its directory structure"""
@@ -104,59 +140,49 @@ class HuggingFaceModelManager:
             return "vocoder"
         return "unknown"
     
-    async def download_model(self, model_id: str, progress_callback: Optional[Callable] = None) -> bool:
+    def check_model_available_locally(self, model_id: str) -> bool:
         """
-        Download a model from Hugging Face Hub
+        Check if a model is available locally.
         
         Args:
-            model_id: The model ID on Hugging Face Hub (e.g., "microsoft/speecht5_tts")
-            progress_callback: Optional callback to report download progress
-        
+            model_id: The model ID to check (e.g., "microsoft/speecht5_tts")
+            
         Returns:
-            bool: True if download was successful, False otherwise
+            bool: True if the model is available locally, False otherwise
         """
-        try:
-            # Create a subdirectory for the model
-            model_name = model_id.split('/')[-1] if '/' in model_id else model_id
-            model_dir = self.models_dir / model_name
+        return model_id in self.available_models
+    
+    def get_model_installation_instructions(self, model_id: str) -> str:
+        """
+        Get instructions for how to manually download and install a model.
+        
+        Args:
+            model_id: The model ID to provide instructions for
             
-            if progress_callback:
-                progress_callback(f"Starting download of {model_id}...")
+        Returns:
+            str: Instructions for manual model installation
+        """
+        # Parse the model_id to determine organization and model name
+        if "/" in model_id:
+            org, model_name = model_id.split("/", 1)
+            model_path = os.path.join(self.models_dir, org, model_name)
+        else:
+            model_name = model_id
+            model_path = os.path.join(self.models_dir, model_name)
             
-            # Use executor to run the download in a background thread
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                # Create a new event loop if there isn't one
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                
-            model_path = await loop.run_in_executor(
-                None, 
-                lambda: snapshot_download(
-                    repo_id=model_id,
-                    local_dir=str(model_dir),
-                    local_dir_use_symlinks=False
-                )
-            )
-            
-            # Update available models
-            self.available_models[model_id] = {
-                "name": model_id,
-                "path": model_path,
-                "type": self._determine_model_type(Path(model_path)),
-                "is_local": True
-            }
-            
-            if progress_callback:
-                progress_callback(f"Downloaded {model_id} successfully")
-            
-            return True
-        except Exception as e:
-            logging.error(f"Failed to download model {model_id}: {e}")
-            if progress_callback:
-                progress_callback(f"Failed to download {model_id}: {str(e)}")
-            return False
+        instructions = f"""
+Model '{model_id}' is not available locally. To use this model, please download it manually:
+
+1. Visit https://huggingface.co/{model_id}
+2. Click 'Files and versions' tab
+3. Download all model files (configuration files, weights, etc.)
+4. Create this folder structure: {model_path}
+5. Place all downloaded files in that folder
+6. Restart the application
+
+Note: Some models can be very large (several GB). Make sure you have enough storage space.
+"""
+        return instructions
     
     async def load_model(self, model_id: str, progress_callback: Optional[Callable] = None) -> bool:
         """
@@ -171,19 +197,23 @@ class HuggingFaceModelManager:
         """
         try:
             if progress_callback:
-                progress_callback(f"Loading model {model_id}...")
+                progress_callback(f"Checking if model {model_id} is available locally...")
             
             # Check if model is available locally
             if model_id not in self.available_models:
+                error_msg = f"Model {model_id} not found locally."
+                instructions = self.get_model_installation_instructions(model_id)
                 if progress_callback:
-                    progress_callback(f"Model {model_id} not found locally, downloading...")
-                success = await self.download_model(model_id, progress_callback)
-                if not success:
-                    return False
+                    progress_callback(f"{error_msg}\n\n{instructions}")
+                logging.error(error_msg)
+                return False
             
             # Get model path
             model_path = self.available_models[model_id]["path"]
             
+            if progress_callback:
+                progress_callback(f"Loading model {model_id}...")
+                
             # Use executor to run model loading in a background thread
             try:
                 loop = asyncio.get_event_loop()
@@ -243,18 +273,22 @@ class HuggingFaceModelManager:
         
         try:
             if progress_callback:
-                progress_callback(f"Loading vocoder {vocoder_id}...")
+                progress_callback(f"Checking if vocoder {vocoder_id} is available locally...")
             
             # Check if vocoder is available locally
             if vocoder_id not in self.available_models:
+                error_msg = f"Vocoder {vocoder_id} not found locally."
+                instructions = self.get_model_installation_instructions(vocoder_id)
                 if progress_callback:
-                    progress_callback(f"Vocoder {vocoder_id} not found locally, downloading...")
-                success = await self.download_model(vocoder_id, progress_callback)
-                if not success:
-                    return False
+                    progress_callback(f"{error_msg}\n\n{instructions}")
+                logging.error(error_msg)
+                return False
             
             # Get vocoder path
             vocoder_path = self.available_models[vocoder_id]["path"]
+            
+            if progress_callback:
+                progress_callback(f"Loading vocoder {vocoder_id}...")
             
             # Use executor to run model loading in a background thread
             try:

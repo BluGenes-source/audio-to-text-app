@@ -192,8 +192,10 @@ class TextToSpeechTab:
         self.hf_model_selector = ttk.Combobox(self.huggingface_frame, state="readonly")
         self.hf_model_selector.grid(row=0, column=1, columnspan=2, padx=5, sticky="ew")
         
-        ttk.Button(self.huggingface_frame, text="Download Model",
-                  command=self.download_hf_model).grid(row=0, column=3, padx=5)
+        # Replace download button with instructions button
+        self.instructions_button = ttk.Button(self.huggingface_frame, text="Installation Instructions",
+                  command=self.show_model_instructions)
+        self.instructions_button.grid(row=0, column=3, padx=5)
         
         # Recommended models frame
         recommended_frame = ttk.LabelFrame(self.huggingface_frame, text="Recommended Models",
@@ -208,8 +210,8 @@ class TextToSpeechTab:
                 # Use default models if the method isn't available
                 recommended_models = [
                     {"id": "microsoft/speecht5_tts", "name": "SpeechT5 TTS"},
-                    {"id": "facebook/mms-tts-eng", "name": "MMS TTS English"},
-                    {"id": "espnet/kan-bayashi_ljspeech_vits", "name": "LJSpeech VITS"}
+                    {"id": "espnet/kan-bayashi_ljspeech_vits", "name": "LJSpeech VITS"},
+                    {"id": "suno/bark-small", "name": "Bark Small"}
                 ]
                 logging.warning("AudioProcessor doesn't have get_huggingface_recommended_models method, using defaults")
         except Exception as e:
@@ -217,9 +219,10 @@ class TextToSpeechTab:
             recommended_models = []
         
         if recommended_models:
+            # Modified to only select model in dropdown without starting download
             for i, model in enumerate(recommended_models):
                 ttk.Button(recommended_frame, text=model['name'],
-                          command=lambda m=model['id']: self.select_hf_model(m)).grid(
+                          command=lambda m=model['id']: self.select_model_only(m)).grid(
                               row=i//2, column=i%2, padx=5, pady=2, sticky="ew")
         else:
             ttk.Label(recommended_frame, text="No recommended models available").grid(
@@ -247,7 +250,65 @@ class TextToSpeechTab:
             self.update_voice_list()
         else:  # huggingface
             self.huggingface_frame.grid(row=2, column=0, columnspan=3, sticky="ew")
+            # Initialize HF model manager if needed
+            self._ensure_hf_model_manager_initialized()
+            # Update model list
             self.update_hf_model_list()
+
+    def _ensure_hf_model_manager_initialized(self):
+        """Ensures the Hugging Face model manager is initialized"""
+        try:
+            # Check if initialization is needed
+            if not hasattr(self.audio_processor, 'hf_manager') or self.audio_processor.hf_manager is None:
+                self.update_status("Initializing Hugging Face model manager...")
+                from modules.audio.huggingface_models import HuggingFaceModelManager
+                
+                # Make sure the app_dir path exists, use a fallback if not
+                if not hasattr(self.audio_processor, 'app_dir'):
+                    # Create a fallback path for models
+                    models_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "Models")
+                else:
+                    models_dir = os.path.join(self.audio_processor.app_dir, "Models")
+                    
+                os.makedirs(models_dir, exist_ok=True)
+                self.audio_processor.hf_manager = HuggingFaceModelManager(models_dir)
+                
+                # Start async initialization
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_closed():
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                except RuntimeError:
+                    # Create a new event loop if there isn't one
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+
+                # Schedule initialization in background
+                asyncio.run_coroutine_threadsafe(
+                    self._initialize_hf_model_manager_async(),
+                    loop
+                )
+                return False
+            return True
+        except Exception as e:
+            logging.error(f"Error ensuring HF model manager: {e}")
+            self.update_status("Failed to initialize models")
+            return False
+
+    async def _initialize_hf_model_manager_async(self):
+        """Initialize the HF model manager asynchronously"""
+        try:
+            self.root.after(0, lambda: self.update_status("Initializing AI models..."))
+            await self.audio_processor.hf_manager.initialize()
+            self.audio_processor._hf_initialized = True
+            self.root.after(0, lambda: self.update_status("AI models initialized"))
+            
+            # Update the model list after initialization
+            self.root.after(0, self.update_hf_model_list)
+        except Exception as e:
+            logging.error(f"Error initializing HF model manager: {e}")
+            self.root.after(0, lambda: self.update_status("Failed to initialize models"))
 
     def update_hf_model_list(self):
         """Update the list of available Hugging Face models"""
@@ -258,6 +319,11 @@ class TextToSpeechTab:
                 self.hf_model_selector.current(0)
                 self.update_status("Hugging Face models not initialized")
                 return
+
+            # Set temporary loading state
+            self.hf_model_selector['values'] = ['Loading models...']
+            self.hf_model_selector.current(0)
+            self.update_status("Loading model list...")
 
             # Run in async to avoid blocking
             try:
@@ -271,6 +337,10 @@ class TextToSpeechTab:
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
                 
+                # Set a timeout to ensure we don't hang forever if the async operation fails
+                self.root.after(10000, self._model_loading_timeout)
+                
+                # Run the async task
                 asyncio.run_coroutine_threadsafe(
                     self._update_hf_model_list_async(),
                     loop
@@ -278,9 +348,46 @@ class TextToSpeechTab:
             except Exception as e:
                 logging.error(f"Error updating HF model list: {e}")
                 self.update_status("Failed to update model list")
+                # Fallback to default models in case of error
+                self._use_default_model_list()
         except Exception as e:
             logging.error(f"Error in update_hf_model_list: {e}")
             self.update_status("Failed to update model list")
+            # Fallback to default models in case of error
+            self._use_default_model_list()
+    
+    def _model_loading_timeout(self):
+        """Handle timeout for model loading"""
+        current = self.hf_model_selector.get()
+        if current == 'Loading models...':
+            self.update_status("Model loading timed out. Using default models.")
+            self._use_default_model_list()
+    
+    def _use_default_model_list(self):
+        """Fallback to display default models when loading fails"""
+        try:
+            default_models = [
+                {"id": "microsoft/speecht5_tts", "name": "SpeechT5 TTS", "is_local": False},
+                {"id": "facebook/mms-tts-eng", "name": "MMS TTS English", "is_local": False},
+                {"id": "espnet/kan-bayashi_ljspeech_vits", "name": "LJSpeech VITS", "is_local": False}
+            ]
+            
+            # If we can get models from the audio processor, use those instead
+            if hasattr(self.audio_processor, 'get_huggingface_recommended_models'):
+                recommended = self.audio_processor.get_huggingface_recommended_models()
+                if recommended:
+                    default_models = [{"id": m["id"], "name": m["id"], "is_local": False} for m in recommended]
+            
+            self._update_hf_model_selector(default_models)
+        except Exception as e:
+            logging.error(f"Error setting default model list: {e}")
+            # Set some basic values directly to ensure the dropdown is usable
+            self.hf_model_selector['values'] = [
+                'microsoft/speecht5_tts (Available)',
+                'facebook/mms-tts-eng (Available)',
+                'espnet/kan-bayashi_ljspeech_vits (Available)'
+            ]
+            self.hf_model_selector.current(0)
 
     async def _update_hf_model_list_async(self):
         """Asynchronously update Hugging Face model list"""
@@ -289,17 +396,63 @@ class TextToSpeechTab:
             if (not hasattr(self.audio_processor, 'hf_manager') or 
                 self.audio_processor.hf_manager is None):
                 self.root.after(0, lambda: self.update_status("Hugging Face models not available"))
+                self.root.after(0, self._use_default_model_list)
                 return
                 
             try:
-                voices = await self.audio_processor.get_huggingface_voices()
-                # Update on main thread
-                self.root.after(0, lambda: self._update_hf_model_selector(voices))
-            except AttributeError:
-                self.root.after(0, lambda: self.update_status("Hugging Face voice list unavailable"))
+                # First ensure manager is initialized
+                if not getattr(self.audio_processor, '_hf_initialized', False):
+                    try:
+                        await self.audio_processor.hf_manager.initialize()
+                        self.audio_processor._hf_initialized = True
+                        self.root.after(0, lambda: self.update_status("Models initialized"))
+                    except Exception as init_error:
+                        logging.error(f"Failed to initialize model manager: {init_error}")
+                        self.root.after(0, lambda: self.update_status("Failed to initialize models"))
+                        self.root.after(0, self._use_default_model_list)
+                        return
+
+                # Get available voices/models
+                try:
+                    voices = await self.audio_processor.get_huggingface_voices()
+                except Exception as voice_error:
+                    logging.error(f"Error getting Hugging Face voices: {voice_error}")
+                    voices = []
+                
+                # If no voices returned but manager initialized, try scanning local models
+                if not voices and self.audio_processor._hf_initialized:
+                    try:
+                        await self.audio_processor.hf_manager.scan_local_models()
+                        voices = await self.audio_processor.get_huggingface_voices()
+                    except Exception as scan_error:
+                        logging.error(f"Error scanning local models: {scan_error}")
+                        voices = []
+                    
+                # Update model list on main thread
+                if voices:
+                    self.root.after(0, lambda: self._update_hf_model_selector(voices))
+                else:
+                    # Populate with default models if no models found
+                    default_models = self.audio_processor.get_huggingface_recommended_models()
+                    if default_models:
+                        model_info = [{"name": m["id"], "is_local": False} for m in default_models]
+                        self.root.after(0, lambda: self._update_hf_model_selector(model_info))
+                    else:
+                        # If we couldn't get any models, use fallback
+                        self.root.after(0, self._use_default_model_list)
+                    
+            except AttributeError as ae:
+                logging.error(f"Attribute error getting HF voices: {ae}")
+                self.root.after(0, lambda: self.update_status("Failed to get voice attributes"))
+                self.root.after(0, self._use_default_model_list)
+            except Exception as e:
+                logging.error(f"Error getting HF voices: {e}")
+                self.root.after(0, lambda: self.update_status("Failed to get voices"))
+                self.root.after(0, self._use_default_model_list)
         except Exception as e:
             logging.error(f"Error in async HF model update: {e}")
             self.root.after(0, lambda: self.update_status("Failed to get models"))
+            self.root.after(0, self._use_default_model_list)
 
     def _update_hf_model_selector(self, voices):
         """Update the Hugging Face model selector with available models"""
@@ -307,92 +460,133 @@ class TextToSpeechTab:
             current = self.hf_model_selector.get()
             values = []
             
-            for voice in voices:
-                display_name = f"{voice['name']} ({'Local' if voice['is_local'] else 'Available'})"
-                values.append(display_name)
+            if not voices or len(voices) == 0:
+                self.hf_model_selector['values'] = ['No models available locally']
+                self.hf_model_selector.current(0)
+                self.update_status("No models found locally")
+                return
             
+            for voice in voices:
+                try:
+                    # Handle both full objects and simple dicts
+                    name = voice.get('name', voice.get('id', 'Unknown Model'))
+                    is_local = voice.get('is_local', False)
+                    display_name = f"{name} ({'Local' if is_local else 'Not installed'})"
+                    values.append(display_name)
+                except Exception as e:
+                    logging.error(f"Error processing voice entry: {e}")
+                    # Skip this voice and continue
+                    continue
+            
+            if not values:
+                self.hf_model_selector['values'] = ['No models available locally']
+                self.hf_model_selector.current(0)
+                self.update_status("No valid models found locally")
+                return
+                
+            # Update the dropdown values
             self.hf_model_selector['values'] = values
             
+            # Select the current item or the first one
             if current and current in values:
                 self.hf_model_selector.set(current)
             elif values:
                 self.hf_model_selector.set(values[0])
+                
+            self.update_status(f"Model list updated - {len(values)} models available")
+            
         except Exception as e:
             logging.error(f"Error updating model selector: {e}")
-            self._update_status("Failed to update model selector")
+            self.update_status("Failed to update model selector")
+            self._use_default_model_list()
 
     def download_hf_model(self):
-        """Download selected Hugging Face model"""
-        selected = self.hf_model_selector.get()
-        if not selected:
-            self.update_status("No model selected")
-            return
-        
-        # Extract model ID from display name
-        model_name = selected.split(" (")[0]
-        
+        """No longer downloads models - shows installation instructions instead"""
+        self.show_model_instructions()
+
+    def show_model_instructions(self):
+        """Show instructions for manually installing models"""
         try:
+            selected = self.hf_model_selector.get()
+            if not selected or selected in ['No models available', 'Loading models...', 'Error loading models']:
+                messagebox.showwarning("No Model Selected", "Please select a model from the dropdown list.")
+                return
+            
+            # Extract model ID from display name
+            model_name = selected.split(" (")[0]  # Remove the status part
+            
+            if " (Local)" in selected:
+                # Model is already local
+                messagebox.showinfo("Already Installed", "This model is already available locally.")
+                return
+                
             # Check if the hf_manager exists
             if not hasattr(self.audio_processor, 'hf_manager') or self.audio_processor.hf_manager is None:
                 messagebox.showerror("Error", "Hugging Face model manager not available")
                 return
                 
-            # Start download in async
-            try:
-                # Get the current event loop or create a new one
-                try:
-                    loop = asyncio.get_event_loop()
-                    if loop.is_closed():
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                except RuntimeError:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    
-                asyncio.run_coroutine_threadsafe(
-                    self._download_hf_model_async(model_name),
-                    loop
-                )
-            except Exception as e:
-                logging.error(f"Error starting model download: {e}")
-                self.update_status("Failed to start download")
-        except Exception as e:
-            logging.error(f"Error in download_hf_model: {e}")
-            messagebox.showerror("Error", f"Failed to start download: {e}")
-
-    async def _download_hf_model_async(self, model_name):
-        """Asynchronously download a Hugging Face model"""
-        try:
-            success = await self.audio_processor.hf_manager.download_model(
-                model_name,
-                progress_callback=self._update_status
-            )
+            # Get installation instructions
+            instructions = self.audio_processor.hf_manager.get_model_installation_instructions(model_name)
             
-            if success:
-                self.root.after(0, lambda: self._update_status(f"Downloaded {model_name}"))
-                # Refresh model list
-                await self._update_hf_model_list_async()
-            else:
-                self.root.after(0, lambda: self._update_status(f"Failed to download {model_name}"))
+            # Display instructions in a messagebox
+            messagebox.showinfo(
+                f"Installation Instructions for {model_name}", 
+                instructions
+            )
+                
         except Exception as e:
-            logging.error(f"Error downloading model: {e}")
-            self.root.after(0, lambda: self._update_status("Download failed"))
+            logging.error(f"Error showing model instructions: {e}")
+            messagebox.showerror("Error", f"Failed to show model instructions: {e}")
+
+    def _show_download_progress(self, show=True):
+        """This method is no longer used since downloading is disabled"""
+        pass
+
+    def select_model_only(self, model_id):
+        """Select a specific Hugging Face model"""
+        try:
+            # First ensure model manager is initialized
+            if not self._ensure_hf_model_manager_initialized():
+                self.update_status(f"Please wait for model manager to initialize... Will select {model_id} when ready.")
+                self.root.after(1000, lambda mid=model_id: self.select_model_only(mid))
+                return
+                
+            # First update the model list if needed
+            if not self.hf_model_selector['values'] or self.hf_model_selector['values'][0] in ['No models available', 'Loading models...', 'Error loading models']:
+                self.update_status(f"Refreshing model list before selecting {model_id}")
+                self._use_default_model_list()
+                # Try again after a delay
+                self.root.after(500, lambda mid=model_id: self.select_model_only(mid))
+                return
+                
+            # Find the display name for this model ID
+            found = False
+            for item in self.hf_model_selector['values']:
+                # Check if the model_id is part of this item
+                if model_id in item:
+                    self.hf_model_selector.set(item)
+                    found = True
+                    self.update_status(f"Selected model: {model_id}")
+                    break
+                    
+            if not found:
+                # If not found in dropdowns, add it to the dropdown
+                new_item = f"{model_id} (Available)"
+                values = list(self.hf_model_selector['values']) + [new_item]
+                self.hf_model_selector['values'] = values
+                self.hf_model_selector.set(new_item)
+                self.update_status(f"Added and selected model: {model_id}")
+            
+        except Exception as e:
+            logging.error(f"Error selecting model: {e}")
+            self.update_status(f"Failed to select model: {str(e)}")
+            # Try to recover by using default models
+            self._use_default_model_list()
 
     def select_hf_model(self, model_id):
         """Select a specific Hugging Face model"""
-        try:
-            # Find the display name for this model ID
-            for item in self.hf_model_selector['values']:
-                if model_id in item:
-                    self.hf_model_selector.set(item)
-                    break
-            
-            # If model isn't downloaded, start download
-            if "Available" in self.hf_model_selector.get():
-                self.download_hf_model()
-        except Exception as e:
-            logging.error(f"Error selecting model: {e}")
-            self._update_status("Failed to select model")
+        # This method is kept for compatibility but now just calls select_model_only
+        self.select_model_only(model_id)
 
     def setup_control_buttons(self):
         control_frame = ttk.LabelFrame(self.parent, text="Controls", 
@@ -831,3 +1025,13 @@ class TextToSpeechTab:
             logging.error(f"Error updating voice list: {e}")
             self.voice_selector['values'] = ['Error loading voices']
             self.voice_selector.current(0)
+
+    def _download_timeout(self, model_name):
+        """Handle timeouts during download"""
+        # If the download button is still disabled, assume we're still in progress
+        if self.download_button['state'] == 'disabled':
+            # Ask the user if they want to cancel
+            if messagebox.askyesno("Download Taking Too Long", 
+                                f"The download for {model_name} seems to be taking a long time.\nWould you like to cancel?"):
+                self._show_download_progress(False)
+                self.update_status("Download cancelled by user due to timeout")

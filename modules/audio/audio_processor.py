@@ -118,6 +118,9 @@ class AudioProcessor:
         self._cache_dir.mkdir(exist_ok=True)
         self._thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=3)
         
+        # Add app_dir attribute - points to the application directory
+        self.app_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        
         # IMPORTANT: Initialize default models first so they're always accessible
         # This is critical for avoiding attribute errors during application startup
         self.hf_default_models = [  # Default models to recommend
@@ -274,6 +277,15 @@ class AudioProcessor:
                         progress_callback("No Hugging Face model selected. Please select a model.")
                     return False
                 
+                # Check if model exists locally
+                if not self.hf_manager.check_model_available_locally(model_id):
+                    error_msg = f"Model {model_id} not available locally."
+                    instructions = self.hf_manager.get_model_installation_instructions(model_id)
+                    if progress_callback:
+                        progress_callback(f"{error_msg}\n\n{instructions}")
+                    logging.error(error_msg)
+                    return False
+                
                 # Load the model if needed
                 if self.hf_manager.current_model != model_id:
                     success = await self.hf_manager.load_model(model_id, progress_callback)
@@ -365,7 +377,7 @@ class AudioProcessor:
         return self.hf_voice_options
     
     def get_huggingface_recommended_models(self) -> List[Dict[str, str]]:
-        """Get recommended Hugging Face models for download"""
+        """Get recommended Hugging Face models for manual download"""
         # IMPORTANT: This is called during app startup, so it must never fail
         if not hasattr(self, 'hf_default_models') or not self.hf_default_models:
             # Fallback if somehow the attribute is missing
@@ -518,3 +530,12 @@ class AudioProcessor:
     def is_playing(self):
         """Check if audio is currently playing"""
         return pygame.mixer.music.get_busy()
+
+    def get_model_installation_path(self, model_id: str) -> str:
+        """Get the path where a model should be installed"""
+        models_dir = os.path.join(self.app_dir, "Models")
+        if "/" in model_id:
+            org, model_name = model_id.split("/", 1)
+            return os.path.join(models_dir, org, model_name)
+        else:
+            return os.path.join(models_dir, model_id)
